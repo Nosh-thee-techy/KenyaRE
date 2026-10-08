@@ -93,7 +93,9 @@
       encodeURIComponent(query);
 
     try {
-      const api = await fetch("/api/intake/geocode?q=" + encodeURIComponent(query));
+      const api = await fetch(
+        (window.KENYARE_API || "") + "/api/intake/geocode?q=" + encodeURIComponent(query)
+      );
       if (api.ok) {
         return api.json();
       }

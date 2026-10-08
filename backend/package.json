@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Request-scoped RAG document extraction service for Nairobi flood CAT exposure data",
-  "main": "src/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node server.js",
+    "start:extract": "node src/server.js",
+    "dev": "node --watch server.js",
     "test": "node --test"
   },
   "dependencies": {

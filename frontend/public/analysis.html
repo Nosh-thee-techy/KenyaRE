@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kenya Re · Analysis</title>
-    <link rel="icon" type="image/png" href="brand/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="brand/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,32 +17,39 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <a href="index.html" title="Kenya Re">
-          <img class="brand-mark" src="brand/kenya-re-mark.png" alt="Kenya Re" />
+        <a class="brand-link" href="index.html" title="Kenya Re">
+          <span class="brand-tile">
+            <img class="brand-mark" src="brand/kenya-re-mark.svg" alt="Kenya Re" />
+          </span>
         </a>
-        <a class="nav-btn" href="index.html" title="Intake">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M4 19V5h10l6 6v8H4z" />
-            <path d="M14 5v6h6" />
-          </svg>
-        </a>
-        <a class="nav-btn active" href="analysis.html" title="Analysis">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M4 19h16" />
-            <path d="M6 16l4-6 3 3 5-8" />
-          </svg>
-        </a>
+        <nav class="sidebar-nav">
+          <a class="nav-btn" href="index.html" title="Intake">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 19V5h10l6 6v8H4z" />
+              <path d="M14 5v6h6" />
+            </svg>
+          </a>
+          <a class="nav-btn" href="review.html" title="Review">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+              <rect x="9" y="3" width="6" height="4" rx="1" />
+              <path d="M9 14l2 2 4-4" />
+            </svg>
+          </a>
+          <a class="nav-btn active" href="analysis.html" title="Analysis">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 19h16" />
+              <path d="M6 16l4-6 3 3 5-8" />
+            </svg>
+          </a>
+        </nav>
       </aside>
 
       <div class="min-w-0">
         <header class="flex items-center justify-between px-8 py-5">
-          <div class="flex items-center gap-4">
-            <img class="brand-wordmark" src="brand/kenya-re-logo.png" alt="Kenya Re" />
-            <div class="h-8 w-px bg-[var(--border)]"></div>
-            <div>
-              <p class="text-xs text-[var(--muted)]">Nairobi pluvial · facultative</p>
-              <h1 class="text-[28px] leading-none font-semibold tracking-tight mt-1">Overview</h1>
-            </div>
+          <div>
+            <p class="text-xs text-[var(--muted)]">Nairobi pluvial · facultative</p>
+            <h1 class="text-[28px] leading-none font-semibold tracking-tight mt-1">Overview</h1>
           </div>
           <div class="flex items-center gap-3">
             <span id="risk-name" class="text-sm text-[var(--muted)]">No run yet</span>
@@ -50,13 +57,6 @@
           </div>
         </header>
 
-        <div class="px-8 mb-5">
-          <img
-            src="brand/kenya-re-banner.jpg"
-            alt="Kenya Re — Strength and wisdom beyond borders"
-            class="w-full h-28 object-cover object-left rounded-[18px] border border-[var(--border)]"
-          />
-        </div>
         <main class="px-8 pb-8 grid lg:grid-cols-[1.45fr_1fr] gap-5">
           <div class="space-y-5">
             <div class="grid grid-cols-3 gap-4">

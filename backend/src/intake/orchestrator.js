@@ -6,6 +6,8 @@
 const { extractFromSlip } = require('./mockRAG');
 const { applyFallbacks } = require('./fallbackEngine');
 const { geocodeAddress } = require('../services/geocoder');
+const { extractExposure } = require('../services/extraction.service');
+const { flattenGemini, mergeRaw, regexLooksComplete } = require('./geminiBridge');
 
 /**
  * Orchestrates the full intake workflow from raw text to canonical exposure
@@ -16,15 +18,31 @@ const { geocodeAddress } = require('../services/geocoder');
 async function processBrokerSlip(input, options = {}) {
   let rawData = {};
 
+  let geminiNote = null;
   if (typeof input === 'string') {
     rawData = extractFromSlip(input);
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey && !regexLooksComplete(rawData)) {
+      try {
+        const gemini = await extractExposure(input, apiKey);
+        rawData = mergeRaw(rawData, flattenGemini(gemini));
+      } catch (err) {
+        const msg = err && err.message ? String(err.message).slice(0, 180) : 'error';
+        geminiNote = `Gemini extraction skipped (${msg}).`;
+      }
+    }
   } else if (typeof input === 'object' && input !== null) {
     rawData = { ...input };
   }
 
-  // Merge any manual overrides passed into the pipeline
   if (options.overrides) {
     rawData = { ...rawData, ...options.overrides };
+    if (options.overrides.lat != null && options.overrides.lon != null) {
+      options.humanCoords = {
+        lat: options.overrides.lat,
+        lon: options.overrides.lon
+      };
+    }
   }
 
   // Fallback Geocoding: If coordinates are missing, attempt Nominatim lookup
@@ -45,6 +63,10 @@ async function processBrokerSlip(input, options = {}) {
     ...options,
     geocodedCoords: geocodedCoords || options.geocodedCoords
   });
+
+  if (geminiNote) {
+    canonical.audit.warnings.push(geminiNote);
+  }
 
   return canonical;
 }

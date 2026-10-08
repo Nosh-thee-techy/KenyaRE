@@ -13,8 +13,9 @@ Never hallucinate, estimate, infer, or calculate missing fields. If a field cann
 Return JSON matching this schema exactly:
 ${schemaDescription}
 
-Normalize explicit values: percentages such as "5%" become 0.05; monetary values become numeric KES only when the document clearly identifies KES; preserve source precision.
-Map housing descriptions only when confident: mabati/iron sheet informal -> informal_iron_sheet; semi-permanent -> semi_permanent; brick/block/stone masonry permanent -> permanent_masonry; reinforced concrete/RCC/concrete frame -> concrete_rcc.
+Normalize explicit values: percentages such as "5%" become 0.05; monetary values become numeric KES only when the document clearly identifies KES, KSh, Ksh, or Kenya Shillings (expand billions/millions); preserve source precision.
+Map tiv_kes from Sum Insured, Total Sum Insured, Sums Insured, SI, TSI, or TIV when an amount is written. Never calculate, estimate, or fill tiv_kes from floor area or a rebuild cost table. If no declared sum is written, tiv_kes is null.
+Map housing descriptions only when confident: mabati/iron sheet informal -> informal_iron_sheet; semi-permanent -> semi_permanent; brick/block/stone masonry permanent -> permanent_masonry; reinforced concrete/RCC/concrete frame -> concrete_rcc. If construction wording is absent or unclear, housing_class is null — do not default to masonry.
 Set coordinates.source to "document_extracted" only if at least one coordinate or elevation value is explicitly present in the document; otherwise null. Missing individual coordinate fields remain null.
 vital_considerations must be a short array of underwriting considerations explicitly supported by the context, or [].
 ${validationError ? `A prior response failed validation: ${validationError}. Correct it and return the complete JSON object.` : ""}

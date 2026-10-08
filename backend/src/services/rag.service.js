@@ -6,7 +6,9 @@ const { chunkText } = require("../utils/normalization");
 async function retrieveContext(text, apiKey) {
   const chunks = chunkText(text);
   if (!chunks.length) throw new Error("The uploaded document contains no readable text");
-  if (!apiKey) return chunks.join("\n\n");
+  // Short slips: keep the full text so TIV / GPS / class lines are not dropped by RAG.
+  const joined = chunks.join("\n\n");
+  if (!apiKey || joined.length <= 12000) return joined;
 
   const embeddings = new GoogleGenerativeAIEmbeddings({
     apiKey,

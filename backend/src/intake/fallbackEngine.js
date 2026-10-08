@@ -28,15 +28,14 @@ function applyFallbacks(raw = {}, options = {}) {
   let lon = raw.lon != null ? parseFloat(raw.lon) : null;
   let gpsSource = 'extracted';
 
-  // Check geocoded fallback if raw GPS is missing
-  if ((lat == null || lon == null) && options.geocodedCoords) {
-    lat = parseFloat(options.geocodedCoords.lat);
-    lon = parseFloat(options.geocodedCoords.lon);
-    gpsSource = 'geocoded';
-  } else if ((lat == null || lon == null) && options.humanCoords) {
+  if (options.humanCoords && options.humanCoords.lat != null && options.humanCoords.lon != null) {
     lat = parseFloat(options.humanCoords.lat);
     lon = parseFloat(options.humanCoords.lon);
     gpsSource = 'human';
+  } else if ((lat == null || lon == null) && options.geocodedCoords) {
+    lat = parseFloat(options.geocodedCoords.lat);
+    lon = parseFloat(options.geocodedCoords.lon);
+    gpsSource = 'geocoded';
   }
 
   if (lat != null && lon != null) {
@@ -78,99 +77,108 @@ function applyFallbacks(raw = {}, options = {}) {
   let statedTiv = raw.tiv_kes != null ? parseFloat(raw.tiv_kes) : null;
   let statedArea = raw.floor_area_m2 != null ? parseFloat(raw.floor_area_m2) : null;
   let statedCost = raw.cost_per_m2_kes != null ? parseFloat(raw.cost_per_m2_kes) : null;
+  if (!Number.isFinite(statedTiv) || statedTiv <= 0) statedTiv = null;
+  if (!Number.isFinite(statedArea) || statedArea <= 0) statedArea = null;
+  if (!Number.isFinite(statedCost) || statedCost <= 0) statedCost = null;
 
-  // Resolve construction class first or infer it from rates
+  // Construction class: extract/infer from stated numbers only. Never default to masonry.
   let housingClass = raw.housing_class || null;
   let classSource = 'extracted';
 
   if (!housingClass) {
     if (statedTiv && statedArea) {
-      const impliedRate = statedTiv / statedArea;
-      housingClass = inferClassFromCost(impliedRate);
+      const rateFromSlip = statedTiv / statedArea;
+      housingClass = inferClassFromCost(rateFromSlip);
       classSource = 'implied';
-      warnings.push(`Construction class inferred as "${housingClass}" from implied rate KES ${Math.round(impliedRate)}/m².`);
+      warnings.push(`Construction class inferred as "${housingClass}" from implied rate KES ${Math.round(rateFromSlip)}/m².`);
     } else if (statedCost) {
       housingClass = inferClassFromCost(statedCost);
       classSource = 'implied';
     } else {
-      housingClass = 'permanent_masonry';
-      classSource = 'class_default';
-      warnings.push('Construction class unstated; defaulted to "permanent_masonry".');
+      housingClass = null;
+      classSource = null;
+      warnings.push('Construction class not stated on slip.');
     }
   }
-  record.exposure.housing_class = tagged(housingClass, classSource);
+  if (housingClass) {
+    record.exposure.housing_class = tagged(housingClass, classSource);
+  }
 
-  const classRef = INTEGRUM_2025_RATES[housingClass] || INTEGRUM_2025_RATES.permanent_masonry;
+  const classRef = housingClass && INTEGRUM_2025_RATES[housingClass]
+    ? INTEGRUM_2025_RATES[housingClass]
+    : null;
 
-  // Resolve Area and Cost/m²
+  // Resolve Area — never invent GFA from Integrum typical sizes when class is unknown
   if (statedArea != null && statedArea > 0) {
     record.exposure.floor_area_m2 = tagged(statedArea, 'extracted');
   } else if (statedTiv != null && statedCost != null) {
     statedArea = statedTiv / statedCost;
     record.exposure.floor_area_m2 = tagged(Math.round(statedArea * 10) / 10, 'implied');
-  } else {
+  } else if (statedTiv != null && classRef) {
     statedArea = classRef.typical_area_m2;
     record.exposure.floor_area_m2 = tagged(statedArea, 'class_default');
     warnings.push(`Floor area not provided; assumed class typical ${statedArea} m².`);
   }
 
-  // Resolve TIV (Declared TIV supremacy rule per docs/VALUATION.md)
+  // TIV: declared sum wins. Never fabricate from Integrum class median.
   if (statedTiv != null && statedTiv > 0) {
     record.exposure.tiv_kes = tagged(statedTiv, 'extracted');
-    const impliedRate = Math.round((statedTiv / statedArea) * 10) / 10;
-    record.exposure.cost_per_m2_kes = tagged(impliedRate, 'implied');
-
-    // Check against Integrum benchmark range
-    if (impliedRate < classRef.min_cost_m2 * 0.7 || impliedRate > classRef.max_cost_m2 * 1.5) {
-      warnings.push(`Implied rate KES ${impliedRate}/m² deviates from standard Integrum 2025 range [${classRef.min_cost_m2}, ${classRef.max_cost_m2}] for ${classRef.label}.`);
+    if (statedArea != null && statedArea > 0) {
+      const impliedRate = Math.round((statedTiv / statedArea) * 10) / 10;
+      record.exposure.cost_per_m2_kes = tagged(impliedRate, 'implied');
+      if (classRef && (impliedRate < classRef.min_cost_m2 * 0.7 || impliedRate > classRef.max_cost_m2 * 1.5)) {
+        warnings.push(`Implied rate KES ${impliedRate}/m² deviates from standard Integrum 2025 range [${classRef.min_cost_m2}, ${classRef.max_cost_m2}] for ${classRef.label}.`);
+      }
     }
   } else if (statedCost != null && statedArea != null) {
     statedTiv = Math.round(statedArea * statedCost);
     record.exposure.tiv_kes = tagged(statedTiv, 'implied');
     record.exposure.cost_per_m2_kes = tagged(statedCost, 'extracted');
-  } else if (statedArea != null) {
-    statedCost = classRef.median_cost_m2;
-    statedTiv = Math.round(statedArea * statedCost);
-    record.exposure.tiv_kes = tagged(statedTiv, 'implied');
-    record.exposure.cost_per_m2_kes = tagged(statedCost, 'class_default');
-    warnings.push(`TIV estimated as KES ${statedTiv.toLocaleString()} using Integrum median rate KES ${statedCost}/m².`);
   } else {
-    blockReasons.push("Cannot value property: Neither TIV nor (Floor Area + Cost) could be determined.");
+    if (statedTiv == null) {
+      warnings.push('TIV not stated on slip');
+    }
+    if (statedTiv == null && (statedArea == null || statedArea <= 0)) {
+      blockReasons.push('Cannot value property: Neither TIV nor floor area could be determined.');
+    }
   }
 
   // -------------------------------------------------------------
   // 3. STRUCTURAL EXPOSURE (Floors, Height, Basements, Plant)
   // -------------------------------------------------------------
   let floors = raw.floors_above_ground != null ? parseInt(raw.floors_above_ground, 10) : null;
-  if (floors != null && floors > 0) {
+  if (!Number.isFinite(floors) || floors <= 0) floors = null;
+  if (floors != null) {
     record.exposure.floors_above_ground = tagged(floors, 'extracted');
-  } else {
-    floors = classRef.default_floors;
-    record.exposure.floors_above_ground = tagged(floors, 'class_default');
   }
 
-  // Total Height
+  // Height: slip / Gemini / human only. Never floors × Integrum floor_height_m.
   let height = raw.total_height_m != null ? parseFloat(raw.total_height_m) : null;
-  if (height != null && height > 0) {
+  if (!Number.isFinite(height) || height <= 0) height = null;
+  if (height != null) {
     record.exposure.total_height_m = tagged(height, 'extracted');
-  } else {
-    height = Math.round((floors * classRef.floor_height_m) * 10) / 10;
-    record.exposure.total_height_m = tagged(height, 'implied');
   }
 
-  // Basement Floors
+  // Basement Floors — unstated = 0 (locked INTAKE.md rule)
   let basements = raw.basement_floors != null ? parseInt(raw.basement_floors, 10) : 0;
   record.exposure.basement_floors = tagged(basements, raw.basement_floors != null ? 'extracted' : 'class_default');
 
-  // First Floor Plinth Clearance
-  let plinth = raw.first_floor_height_m != null ? parseFloat(raw.first_floor_height_m) : classRef.default_plinth_m;
-  record.exposure.first_floor_height_m = tagged(plinth, raw.first_floor_height_m != null ? 'extracted' : 'class_default');
+  // Plinth: stated only. Do not fill Integrum class default.
+  if (raw.first_floor_height_m != null) {
+    const plinth = parseFloat(raw.first_floor_height_m);
+    if (Number.isFinite(plinth)) {
+      record.exposure.first_floor_height_m = tagged(plinth, 'extracted');
+    }
+  }
 
   // Critical plant in basement flag
   let plantInBasement = raw.critical_plant_in_basement === true;
   record.exposure.critical_plant_in_basement = tagged(plantInBasement, raw.critical_plant_in_basement != null ? 'extracted' : 'implied');
 
-  record.exposure.occupancy = tagged(raw.occupancy || (housingClass === 'concrete_rcc' ? 'commercial' : 'residential'), 'derived');
+  record.exposure.occupancy = tagged(
+    raw.occupancy || (housingClass === 'concrete_rcc' ? 'commercial' : housingClass ? 'residential' : 'commercial'),
+    'derived'
+  );
 
   // -------------------------------------------------------------
   // 4. COVERAGE & FINANCIAL TERMS (Policy Clauses)
@@ -199,12 +207,22 @@ function applyFallbacks(raw = {}, options = {}) {
 
   // Deductibles & Policy Limits
   let dedPct = raw.deductible_pct != null ? parseFloat(raw.deductible_pct) : 0.05; // 5% default on commercial
-  let dedMin = raw.deductible_min_kes != null ? parseFloat(raw.deductible_min_kes) : (record.exposure.housing_class.value === 'concrete_rcc' ? 5000000.0 : 0.0);
+  let dedMin = raw.deductible_min_kes != null
+    ? parseFloat(raw.deductible_min_kes)
+    : (housingClass === 'concrete_rcc' ? 5000000.0 : 0.0);
   let limit = raw.policy_limit_kes != null ? parseFloat(raw.policy_limit_kes) : statedTiv;
 
   record.financial_terms.deductible_pct = tagged(dedPct, raw.deductible_pct != null ? 'extracted' : 'class_default');
   record.financial_terms.deductible_min_kes = tagged(dedMin, raw.deductible_min_kes != null ? 'extracted' : 'class_default');
-  record.financial_terms.policy_limit_kes = tagged(limit, raw.policy_limit_kes != null ? 'extracted' : 'class_default');
+  if (limit != null && Number.isFinite(limit) && limit > 0) {
+    record.financial_terms.policy_limit_kes = tagged(
+      limit,
+      raw.policy_limit_kes != null ? 'extracted' : 'class_default'
+    );
+  }
+  if (Array.isArray(raw.vital_considerations) && raw.vital_considerations.length) {
+    record.financial_terms.vital_considerations = raw.vital_considerations;
+  }
 
   // -------------------------------------------------------------
   // 5. AUDIT & BLOCKER EVALUATION
