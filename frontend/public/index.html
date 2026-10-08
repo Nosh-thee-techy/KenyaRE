@@ -73,11 +73,11 @@
                 <span>Placement memorandum</span>
                 <span>txt · pdf · docx · xlsx</span>
               </header>
-              <div id="dropzone" class="slip-drop">
+              <div id="dropzone" role="button" tabindex="0" class="slip-drop">
                 <p class="slip-drop-title">Drop the broker slip</p>
                 <p class="slip-drop-sub">or click — the paper is the file picker</p>
-                <input id="file" type="file" accept=".txt,.md,.json,.pdf,.docx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp" class="hidden" />
               </div>
+              <input id="file" type="file" accept=".txt,.md,.json,.pdf,.docx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp" class="hidden" />
               <details class="slip-paste">
                 <summary>Paste text instead</summary>
                 <textarea
@@ -95,7 +95,7 @@
                   id="extract-spinner"
                   class="hidden h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin"
                 ></span>
-                Extract
+                Extract risk profile
               </button>
             </div>
           </section>
@@ -277,6 +277,9 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
     <script src="js/mockData.js"></script>
     <script src="js/mapModal.js"></script>
     <script src="js/app.js"></script>

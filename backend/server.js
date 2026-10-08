@@ -11,6 +11,8 @@ const { geocodeAddress } = require("./src/services/geocoder");
 const { validateNairobiCoordinates } = require("./src/services/bounds");
 const { loadDocument, supportedExtensions } = require("./src/loaders/document.loader");
 const extractionRoutes = require("./src/routes/extraction.routes");
+const { saveExposure, getExposure, listExposures, deleteExposure } = require("./src/services/firestore.service");
+const { runCatModel } = require("./src/engine/catModel");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -81,6 +83,16 @@ async function parseSlipHandler(req, res) {
     }
     const overrides = parseOverrides(req.body && req.body.overrides);
     const canonical = await processBrokerSlip(text || "", { overrides, images });
+
+    // Auto-save to Firestore database so data is accessible across Review and Run
+    try {
+      const savedDoc = await saveExposure(canonical);
+      canonical.id = savedDoc.id;
+      canonical.storage = savedDoc.storage;
+    } catch (saveErr) {
+      console.warn("[Firestore] Auto-save on parse slip notice:", saveErr.message);
+    }
+
     return res.json({ ...canonical, extracted_text: text || "" });
   } catch (err) {
     console.error("Error parsing slip:", err);
@@ -127,6 +139,109 @@ app.post("/api/intake/validate-coords", (req, res) => {
     return res.status(400).json({ error: 'Fields "lat" and "lon" are required.' });
   }
   return res.json(validateNairobiCoordinates(parseFloat(lat), parseFloat(lon)));
+});
+
+// -------------------------------------------------------------
+// FIRESTORE DATABASE PERSISTENCE ENDPOINTS
+// -------------------------------------------------------------
+app.post("/api/exposure/save", async (req, res) => {
+  try {
+    const record = req.body;
+    if (!record || typeof record !== "object" || (!record.property_name && !record.reference)) {
+      return res.status(400).json({
+        error: "A valid Canonical Exposure Record object is required in the request body."
+      });
+    }
+
+    const result = await saveExposure(record);
+    return res.status(200).json(result);
+  } catch (err) {
+    console.error("Error saving exposure to Firestore:", err);
+    return res.status(500).json({
+      error: "Failed to persist exposure record to Firestore.",
+      details: err.message
+    });
+  }
+});
+
+app.get("/api/exposure", async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
+    const records = await listExposures(limit);
+    return res.json(records);
+  } catch (err) {
+    return res.status(500).json({
+      error: "Failed to list exposure records from Firestore.",
+      details: err.message
+    });
+  }
+});
+
+app.get("/api/exposure/:id", async (req, res) => {
+  try {
+    const record = await getExposure(req.params.id);
+    if (!record) {
+      return res.status(404).json({
+        error: `Exposure record with reference or ID '${req.params.id}' was not found.`
+      });
+    }
+    return res.json(record);
+  } catch (err) {
+    return res.status(500).json({
+      error: "Failed to retrieve exposure record.",
+      details: err.message
+    });
+  }
+});
+
+app.delete("/api/exposure/:id", async (req, res) => {
+  try {
+    const success = await deleteExposure(req.params.id);
+    return res.json({ success, id: req.params.id });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Failed to delete exposure record.",
+      details: err.message
+    });
+  }
+});
+
+// -------------------------------------------------------------
+// CATASTROPHE ENGINE EXECUTION ENDPOINT
+// Evaluates hazard, vulnerability, and financial losses; saves to Firestore
+// -------------------------------------------------------------
+app.post("/api/model/run", async (req, res) => {
+  try {
+    const exposureData = req.body;
+    if (!exposureData || typeof exposureData !== "object") {
+      return res.status(400).json({ error: "Exposure risk data payload is required." });
+    }
+
+    // 1. Run the Catastrophe Modeling Engine (Modules 1-4)
+    const results = runCatModel(exposureData);
+
+    // 2. Persist the updated risk and calculation results into Firestore
+    const recordToSave = {
+      ...exposureData,
+      model_results: results,
+      last_modeled_at: new Date().toISOString()
+    };
+    const saved = await saveExposure(recordToSave);
+
+    return res.json({
+      success: true,
+      id: saved.id,
+      storage: saved.storage,
+      exposure: recordToSave,
+      results
+    });
+  } catch (err) {
+    console.error("Error executing catastrophe model:", err);
+    return res.status(500).json({
+      error: "Catastrophe model execution failed.",
+      details: err.message
+    });
+  }
 });
 
 app.use((error, _req, res, _next) => {

@@ -62,61 +62,122 @@
             <div class="grid grid-cols-3 gap-4">
               <div class="card p-5">
                 <p class="text-xs text-[var(--muted)]">Ground-up AAL</p>
-                <p class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">After a model run</p>
+                <p id="kpi-aal" class="text-3xl font-semibold mt-2">—</p>
+                <p class="text-xs text-[var(--muted)] mt-1">Average annual loss</p>
               </div>
               <div class="card p-5">
                 <p class="text-xs text-[var(--muted)]">PML 100-year</p>
-                <p class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">Occasional tier</p>
+                <p id="kpi-pml100" class="text-3xl font-semibold mt-2">—</p>
+                <p class="text-xs text-[var(--muted)] mt-1">Occasional tier (1% AEP)</p>
               </div>
               <div class="card p-5">
                 <p class="text-xs text-[var(--muted)]">PML 250-year</p>
-                <p class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">Common (widest) tier</p>
+                <p id="kpi-pml250" class="text-3xl font-semibold mt-2">—</p>
+                <p class="text-xs text-[var(--muted)] mt-1">Common tier (0.4% AEP)</p>
               </div>
             </div>
             <div class="card p-6">
               <div class="flex items-center justify-between mb-6">
-                <p class="text-sm font-medium">Exceedance by rarity</p>
-                <span class="text-xs text-[var(--muted)]">Placeholder until engine wires in</span>
+                <p class="text-sm font-medium">Exceedance by rarity (EP Curve)</p>
+                <span id="ep-subtext" class="text-xs text-[var(--muted)]">Pluvial surface water loss</span>
               </div>
               <div class="flex items-end gap-4 h-44">
-                <div class="flex-1 bg-[#efece6] rounded-2xl h-[28%]"></div>
-                <div class="flex-1 bg-[var(--accent-soft)] rounded-2xl h-[48%]"></div>
-                <div class="flex-1 bg-[var(--accent)] rounded-2xl h-[86%] relative">
-                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-1">250y</span>
+                <div id="bar-10" class="flex-1 bg-[#efece6] rounded-2xl h-[20%] transition-all duration-500 relative" title="10y"></div>
+                <div id="bar-25" class="flex-1 bg-[#d9d3c9] rounded-2xl h-[35%] transition-all duration-500 relative" title="25y"></div>
+                <div id="bar-50" class="flex-1 bg-[var(--accent-soft)] rounded-2xl h-[50%] transition-all duration-500 relative" title="50y"></div>
+                <div id="bar-100" class="flex-1 bg-[var(--brand)] rounded-2xl h-[70%] transition-all duration-500 relative" title="100y"></div>
+                <div id="bar-250" class="flex-1 bg-[var(--accent)] rounded-2xl h-[95%] transition-all duration-500 relative" title="250y">
+                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-1 font-semibold">250y PML</span>
                 </div>
-                <div class="flex-1 bg-[var(--brand)] rounded-2xl h-[62%]"></div>
-                <div class="flex-1 bg-[#efece6] rounded-2xl h-[36%]"></div>
               </div>
-              <div class="flex justify-between mt-3 text-xs text-[var(--muted)]">
-                <span>10y</span><span>25y</span><span>100y</span><span>200y</span><span>250y</span>
+              <div class="flex justify-between mt-3 text-xs text-[var(--muted)] font-mono">
+                <span>10y</span><span>25y</span><span>50y</span><span>100y</span><span>250y</span>
               </div>
             </div>
           </div>
           <aside class="space-y-5">
             <div class="card p-5">
-              <p class="text-sm font-medium">Start from a digested risk</p>
-              <p class="text-sm text-[var(--muted)] mt-2 mb-4">
-                Same Kenya Re navy and crimson as Intake.
-                Analysis fills these tiles after you run the catastrophe model.
-              </p>
-              <a href="index.html" class="btn-primary inline-block px-4 py-2 text-sm">Open intake</a>
+              <p class="text-sm font-medium">Underwriter Risk Summary</p>
+              <div id="summary-content" class="text-sm text-[var(--muted)] mt-2 mb-4 space-y-2">
+                <p>Run the catastrophe model on Review to populate institutional metrics.</p>
+              </div>
+              <a href="review.html" class="btn-primary inline-block px-4 py-2 text-sm">Return to Review</a>
             </div>
           </aside>
         </main>
       </div>
     </div>
     <script>
-      try {
-        const raw = sessionStorage.getItem("kenyaReHandoff");
-        if (raw) {
-          const data = JSON.parse(raw);
-          document.getElementById("risk-name").textContent =
-            data.property_name || "Digested risk";
+      const API_BASE = location.port === "5173" ? "http://127.0.0.1:3000" : "";
+
+      function fmtKes(n) {
+        if (!n || isNaN(n)) return "—";
+        if (n >= 1e9) return "KES " + (n / 1e9).toFixed(2) + "B";
+        if (n >= 1e6) return "KES " + (n / 1e6).toFixed(1) + "M";
+        return "KES " + Number(n).toLocaleString("en-KE");
+      }
+
+      async function renderAnalysis() {
+        let runData = null;
+        try {
+          const raw = sessionStorage.getItem("kenyaReResults") || sessionStorage.getItem("kenyaReHandoff");
+          if (raw) runData = JSON.parse(raw);
+        } catch (_) {}
+
+        // If not in session, retrieve latest record from database
+        if (!runData || !runData.results) {
+          try {
+            const res = await fetch(API_BASE + "/api/exposure?limit=1");
+            if (res.ok) {
+              const list = await res.json();
+              if (list && list.length && list[0].model_results) {
+                runData = { exposure: list[0], results: list[0].model_results };
+              }
+            }
+          } catch (e) {
+            console.warn("DB fetch fallback notice:", e);
+          }
         }
-      } catch (_) {}
+
+        if (!runData) return;
+
+        const exp = runData.exposure || runData;
+        const res = runData.results || exp.model_results;
+        const propName = exp.property_name?.value || exp.property_name || "Landmark Plaza";
+        document.getElementById("risk-name").textContent = propName;
+
+        if (res && res.metrics) {
+          document.getElementById("kpi-aal").textContent = fmtKes(res.metrics.aal_ground_up_kes);
+          document.getElementById("kpi-pml100").textContent = fmtKes(res.metrics.pml_100y_kes);
+          document.getElementById("kpi-pml250").textContent = fmtKes(res.metrics.pml_250y_kes);
+
+          const summary = document.getElementById("summary-content");
+          if (summary) {
+            summary.innerHTML = `
+              <p><strong>Property:</strong> ${propName}</p>
+              <p><strong>Database ID:</strong> <span class="font-mono text-xs">${exp.reference?.value || exp.reference || 'EIB-NAI-LP-2026-001'}</span></p>
+              <p><strong>Net Annual Loss (AAL):</strong> ${fmtKes(res.metrics.aal_net_kes)}</p>
+              <p><strong>Rate-on-Line (ROL):</strong> ${res.metrics.rate_on_line_pct}%</p>
+              <p class="text-xs pt-1 text-[var(--accent)] font-medium">${res.hazard_summary?.ai_drainage_penalty_applied ? '⚠️ AI Drainage Surcharge (+0.35m) Applied: ' + res.hazard_summary.nearby_hotspot : '✓ Standard Riverine Hazard'}</p>
+            `;
+          }
+        }
+
+        // Render EP Curve bars
+        if (res && res.ep_curve && res.ep_curve.length >= 5) {
+          const maxLoss = Math.max(...res.ep_curve.map(p => p.net_loss_kes || p.ground_up_loss_kes || 1));
+          res.ep_curve.forEach(pt => {
+            const bar = document.getElementById("bar-" + pt.return_period);
+            if (bar) {
+              const pct = Math.max(12, Math.round(((pt.net_loss_kes || pt.ground_up_loss_kes) / maxLoss) * 95));
+              bar.style.height = pct + "%";
+              bar.setAttribute("title", `${pt.return_period}y: ${fmtKes(pt.net_loss_kes)}`);
+            }
+          });
+        }
+      }
+
+      renderAnalysis();
     </script>
   </body>
 </html>

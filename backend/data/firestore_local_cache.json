@@ -1,0 +1,325 @@
+{
+  "EIB-NAI-LP-2026-001": {
+    "property_name": "Landmark Plaza Commercial Development",
+    "reference": "EIB-NAI-LP-2026-001",
+    "coordinates": {
+      "lat": {
+        "value": -1.2847,
+        "source": "extracted"
+      },
+      "lon": {
+        "value": 36.8247,
+        "source": "extracted"
+      },
+      "elevation_m": {
+        "value": 1612,
+        "source": "extracted"
+      }
+    },
+    "exposure": {
+      "housing_class": {
+        "value": "concrete_rcc",
+        "source": "extracted"
+      },
+      "occupancy": {
+        "value": "commercial",
+        "source": "derived"
+      },
+      "floor_area_m2": {
+        "value": 24500,
+        "source": "extracted"
+      },
+      "floors_above_ground": {
+        "value": 18,
+        "source": "extracted"
+      },
+      "total_height_m": {
+        "value": 64.8,
+        "source": "extracted"
+      },
+      "basement_floors": {
+        "value": 2,
+        "source": "extracted"
+      },
+      "critical_plant_in_basement": {
+        "value": true,
+        "source": "extracted"
+      },
+      "tiv_kes": {
+        "value": 1090000000,
+        "source": "extracted"
+      }
+    },
+    "coverage": {
+      "coverage_type": {
+        "value": "All-Risks (excluding flood)",
+        "source": "extracted"
+      },
+      "cover_subject": {
+        "value": "both",
+        "source": "derived"
+      }
+    },
+    "financial_terms": {
+      "deductible_pct": {
+        "value": 0.05,
+        "source": "extracted"
+      },
+      "deductible_min_kes": {
+        "value": 5000000,
+        "source": "extracted"
+      },
+      "policy_limit_kes": {
+        "value": 1090000000,
+        "source": "extracted"
+      }
+    },
+    "model_results": {
+      "evaluated_at": "2026-10-08T21:39:18.287Z",
+      "hazard_summary": {
+        "ai_drainage_penalty_applied": true,
+        "nearby_hotspot": "Upper Hill / Community",
+        "penalty_m": 0.35
+      },
+      "metrics": {
+        "aal_ground_up_kes": 5524541,
+        "aal_net_kes": 5044541,
+        "pml_100y_kes": 64315243,
+        "pml_250y_kes": 73177659,
+        "rate_on_line_pct": 0.46
+      },
+      "ep_curve": [
+        {
+          "tier": "extreme",
+          "return_period": 10,
+          "aep": 0.1,
+          "flood_depth_m": 0.6,
+          "damage_ratio": 0.125,
+          "ground_up_loss_kes": 52539438,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 47539438
+        },
+        {
+          "tier": "severe",
+          "return_period": 25,
+          "aep": 0.04,
+          "flood_depth_m": 0.9,
+          "damage_ratio": 0.18,
+          "ground_up_loss_kes": 55898233,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 50898233
+        },
+        {
+          "tier": "moderate",
+          "return_period": 50,
+          "aep": 0.02,
+          "flood_depth_m": 1.3,
+          "damage_ratio": 0.273,
+          "ground_up_loss_kes": 61558265,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 56558265
+        },
+        {
+          "tier": "occasional",
+          "return_period": 100,
+          "aep": 0.01,
+          "flood_depth_m": 1.8,
+          "damage_ratio": 0.402,
+          "ground_up_loss_kes": 69315243,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 64315243
+        },
+        {
+          "tier": "common",
+          "return_period": 250,
+          "aep": 0.004,
+          "flood_depth_m": 2.55,
+          "damage_ratio": 0.548,
+          "ground_up_loss_kes": 78177659,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 73177659
+        }
+      ]
+    },
+    "id": "EIB-NAI-LP-2026-001",
+    "schema_version": "1.0",
+    "peril": "Nairobi Urban Pluvial Flood",
+    "updated_at": "2026-10-08T21:39:20.271Z",
+    "created_at": "2026-10-08T21:19:37.288Z"
+  },
+  "SRB-NAI-COM-2026-014": {
+    "property_name": "Meridian Heights Developments Limited",
+    "reference": "SRB-NAI-COM-2026-014",
+    "coordinates": {
+      "lat": {
+        "value": -1.2763,
+        "source": "human"
+      },
+      "lon": {
+        "value": 36.7916,
+        "source": "human"
+      },
+      "elevation_m": {
+        "value": 1600,
+        "source": "class_default"
+      },
+      "elevation_m_dem": null
+    },
+    "exposure": {
+      "housing_class": {
+        "value": "concrete_rcc",
+        "source": "extracted"
+      },
+      "occupancy": {
+        "value": "commercial",
+        "source": "derived"
+      },
+      "floor_area_m2": {
+        "value": 21800,
+        "source": "extracted"
+      },
+      "floors_above_ground": {
+        "value": 15,
+        "source": "extracted"
+      },
+      "total_height_m": {
+        "value": 56.4,
+        "source": "extracted"
+      },
+      "basement_floors": {
+        "value": 3,
+        "source": "extracted"
+      },
+      "first_floor_height_m": null,
+      "critical_plant_in_basement": {
+        "value": true,
+        "source": "extracted"
+      },
+      "tiv_kes": {
+        "value": 940000000,
+        "source": "extracted"
+      },
+      "cost_per_m2_kes": {
+        "value": 43119.266055045875,
+        "source": "implied"
+      }
+    },
+    "coverage": {
+      "class_of_business": {
+        "value": "89%",
+        "source": "extracted"
+      },
+      "coverage_type": {
+        "value": "Flood cover may be considered subject to CAT model output, applicableflood accumulation, deductible and sub-limit requirements.",
+        "source": "extracted"
+      },
+      "flood_cover_requested": {
+        "value": true,
+        "source": "extracted"
+      },
+      "cover_subject": {
+        "value": "both",
+        "source": "derived"
+      },
+      "insured_interest": [
+        "owner/lessor",
+        "occupying tenants"
+      ]
+    },
+    "financial_terms": {
+      "deductible_pct": {
+        "value": 0.05,
+        "source": "class_default"
+      },
+      "deductible_min_kes": {
+        "value": 5000000,
+        "source": "class_default"
+      },
+      "policy_limit_kes": {
+        "value": 940000000,
+        "source": "extracted"
+      },
+      "vital_considerations": []
+    },
+    "audit": {
+      "is_blocked": false,
+      "block_reasons": [],
+      "warnings": [
+        "Elevation not stated; defaulted to regional baseline 1,600m ASL."
+      ]
+    },
+    "model_results": {
+      "evaluated_at": "2026-10-08T21:43:34.357Z",
+      "hazard_summary": {
+        "ai_drainage_penalty_applied": true,
+        "nearby_hotspot": "Westlands / Ojijo Rd",
+        "penalty_m": 0.35
+      },
+      "metrics": {
+        "aal_ground_up_kes": 5566535,
+        "aal_net_kes": 5086535,
+        "pml_100y_kes": 65162930,
+        "pml_250y_kes": 74334311,
+        "rate_on_line_pct": 0.54
+      },
+      "ep_curve": [
+        {
+          "tier": "extreme",
+          "return_period": 10,
+          "aep": 0.1,
+          "flood_depth_m": 0.6,
+          "damage_ratio": 0.125,
+          "ground_up_loss_kes": 52802281,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 47802281
+        },
+        {
+          "tier": "severe",
+          "return_period": 25,
+          "aep": 0.04,
+          "flood_depth_m": 0.9,
+          "damage_ratio": 0.18,
+          "ground_up_loss_kes": 56278172,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 51278172
+        },
+        {
+          "tier": "moderate",
+          "return_period": 50,
+          "aep": 0.02,
+          "flood_depth_m": 1.3,
+          "damage_ratio": 0.273,
+          "ground_up_loss_kes": 62135525,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 57135525
+        },
+        {
+          "tier": "occasional",
+          "return_period": 100,
+          "aep": 0.01,
+          "flood_depth_m": 1.8,
+          "damage_ratio": 0.402,
+          "ground_up_loss_kes": 70162930,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 65162930
+        },
+        {
+          "tier": "common",
+          "return_period": 250,
+          "aep": 0.004,
+          "flood_depth_m": 2.55,
+          "damage_ratio": 0.548,
+          "ground_up_loss_kes": 79334311,
+          "deductible_kes": 5000000,
+          "net_loss_kes": 74334311
+        }
+      ]
+    },
+    "last_modeled_at": "2026-10-08T21:43:34.357Z",
+    "id": "SRB-NAI-COM-2026-014",
+    "schema_version": "1.0",
+    "peril": "Nairobi Urban Pluvial Flood",
+    "updated_at": "2026-10-08T21:43:34.357Z",
+    "created_at": "2026-10-08T21:42:21.849Z"
+  }
+}

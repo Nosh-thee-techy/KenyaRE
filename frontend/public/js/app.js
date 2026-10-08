@@ -12,7 +12,7 @@
     both: "Building + assets",
   };
 
-  const API_BASE = location.port === "5173" ? "http://127.0.0.1:3000" : "";
+  const API_BASE = (location.port && location.port !== "3000") ? (location.protocol + "//" + location.hostname + ":3000") : "";
   const INTAKE_LOCK_KEY = "kenyaReIntakeLock";
   const INTAKE_LOCK_VERSION = 1;
   const SLIP_MAX_CHARS = 1500000;
@@ -1527,14 +1527,89 @@
       if (!openReviewIfNeeded() && gpsMissing) window.MapModal.open();
       return;
     }
+
+    // Build the full canonical record from the input form
+    const propName = (typeof state.property_name === "object" ? state.property_name.value : state.property_name) ||
+      (byId("property_name") && byId("property_name").textContent !== "No risk loaded" ? byId("property_name").textContent : "Landmark Plaza Commercial Development");
+    const refCode = (typeof state.reference === "object" ? state.reference.value : state.reference) ||
+      (byId("reference") && byId("reference").textContent ? byId("reference").textContent : "EIB-NAI-LP-2026-001");
+
+    const canonicalRecord = {
+      property_name: propName,
+      reference: refCode,
+      coordinates: {
+        lat: { value: getLat(), source: field(state, "coordinates.lat.source") || "human" },
+        lon: { value: getLon(), source: field(state, "coordinates.lon.source") || "human" },
+        elevation_m: { value: num(field(state, "coordinates.elevation_m.value")), source: field(state, "coordinates.elevation_m.source") || "class_default" },
+        elevation_m_dem: field(state, "coordinates.elevation_m_dem.value") != null ? { value: num(field(state, "coordinates.elevation_m_dem.value")), source: "dem" } : null
+      },
+      exposure: {
+        housing_class: { value: field(state, "exposure.housing_class.value"), source: field(state, "exposure.housing_class.source") || "human" },
+        occupancy: { value: field(state, "exposure.occupancy.value") || "commercial", source: field(state, "exposure.occupancy.source") || "derived" },
+        floor_area_m2: { value: num(field(state, "exposure.floor_area_m2.value")), source: field(state, "exposure.floor_area_m2.source") || "human" },
+        floors_above_ground: { value: num(field(state, "exposure.floors_above_ground.value")), source: field(state, "exposure.floors_above_ground.source") || "human" },
+        total_height_m: { value: num(field(state, "exposure.total_height_m.value")), source: field(state, "exposure.total_height_m.source") || "implied" },
+        basement_floors: { value: num(field(state, "exposure.basement_floors.value")) || 0, source: field(state, "exposure.basement_floors.source") || "human" },
+        first_floor_height_m: num(field(state, "exposure.first_floor_height_m.value")),
+        critical_plant_in_basement: { value: Boolean(field(state, "exposure.critical_plant_in_basement.value")), source: field(state, "exposure.critical_plant_in_basement.source") || "human" },
+        tiv_kes: { value: num(field(state, "exposure.tiv_kes.value")), source: field(state, "exposure.tiv_kes.source") || "human" },
+        cost_per_m2_kes: { value: impliedRate() || num(field(state, "exposure.cost_per_m2_kes.value")), source: field(state, "exposure.cost_per_m2_kes.source") || "implied" }
+      },
+      coverage: {
+        class_of_business: { value: field(state, "coverage.class_of_business.value") || "Commercial Property", source: field(state, "coverage.class_of_business.source") || "class_default" },
+        coverage_type: { value: field(state, "coverage.coverage_type.value") || "All-Risks (excluding flood)", source: field(state, "coverage.coverage_type.source") || "class_default" },
+        flood_cover_requested: { value: true, source: "extracted" },
+        cover_subject: { value: field(state, "coverage.cover_subject.value") || "both", source: field(state, "coverage.cover_subject.source") || "derived" },
+        insured_interest: Array.isArray(state.coverage && state.coverage.insured_interest) ? state.coverage.insured_interest : ["owner/lessor", "occupying tenants"]
+      },
+      financial_terms: {
+        deductible_pct: { value: num(field(state, "financial_terms.deductible_pct.value")), source: field(state, "financial_terms.deductible_pct.source") || "human" },
+        deductible_min_kes: { value: num(field(state, "financial_terms.deductible_min_kes.value")), source: field(state, "financial_terms.deductible_min_kes.source") || "human" },
+        policy_limit_kes: { value: num(field(state, "financial_terms.policy_limit_kes.value")), source: field(state, "financial_terms.policy_limit_kes.source") || "human" },
+        vital_considerations: Array.isArray(state.financial_terms && state.financial_terms.vital_considerations) ? state.financial_terms.vital_considerations : []
+      },
+      audit: {
+        is_blocked: false,
+        block_reasons: [],
+        warnings: Array.isArray(state.audit && state.audit.warnings) ? state.audit.warnings : []
+      }
+    };
+
+    // 1. SAVE TO FIRESTORE DATABASE
+    try {
+      toast("Saving risk record to Firestore database...");
+      if (window.CatNetFirebase && typeof window.CatNetFirebase.saveExposureToFirestore === "function") {
+        await window.CatNetFirebase.saveExposureToFirestore(canonicalRecord);
+        toast("Saved to Firestore & handing off to catastrophe engine.");
+      }
+    } catch (saveErr) {
+      console.warn("Firestore database save warning:", saveErr);
+    }
     const body = payload();
     try {
-      await fetch("/api/model/run", {
+      toast("Running catastrophe model engine...");
+      const res = await fetch(API_BASE + "/api/model/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(canonicalRecord),
       });
-    } catch (_) {}
+      if (!res.ok) throw new Error("Catastrophe engine returned HTTP " + res.status);
+      const modelData = await res.json();
+      console.log("✅ [Model Run] Retrieved catastrophe results from database:", modelData);
+      sessionStorage.setItem("kenyaReResults", JSON.stringify(modelData));
+      sessionStorage.setItem("kenyaReHandoff", JSON.stringify(modelData.exposure || body));
+
+      const pml100 = modelData.results?.metrics?.pml_100y_kes != null ? fmtKes(modelData.results.metrics.pml_100y_kes) : "—";
+      const aal = modelData.results?.metrics?.aal_ground_up_kes != null ? fmtKes(modelData.results.metrics.aal_ground_up_kes) : "—";
+      toast("Run complete! Retrieved from DB: AAL KES " + aal + " · PML-100 KES " + pml100);
+      showHandoff(modelData);
+    } catch (err) {
+      console.warn("Notice: Cat model offline fallback:", err.message);
+      showHandoff(body);
+    }
+  }
+
+  function showHandoff(body) {
     try {
       sessionStorage.setItem("kenyaReHandoff", JSON.stringify(body));
     } catch (_) {}
@@ -1780,24 +1855,37 @@
     const drop = document.getElementById("dropzone");
     const file = document.getElementById("file");
     if (drop && file) {
-      drop.addEventListener("click", function () {
+      drop.addEventListener("click", function (e) {
+        e.preventDefault();
+        file.value = "";
         file.click();
+      });
+      drop.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          file.value = "";
+          file.click();
+        }
       });
       drop.addEventListener("dragover", function (e) {
         e.preventDefault();
+        e.stopPropagation();
         drop.classList.add("border-[var(--accent)]");
       });
-      drop.addEventListener("dragleave", function () {
+      drop.addEventListener("dragleave", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         drop.classList.remove("border-[var(--accent)]");
       });
       drop.addEventListener("drop", function (e) {
         e.preventDefault();
+        e.stopPropagation();
         drop.classList.remove("border-[var(--accent)]");
-        const f = e.dataTransfer.files[0];
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
         if (f) readFile(f);
       });
       file.addEventListener("change", function (e) {
-        const f = e.target.files[0];
+        const f = e.target.files && e.target.files[0];
         if (f) readFile(f);
       });
     }
@@ -1822,18 +1910,69 @@
     reader.readAsText(f);
   }
 
+  async function syncWithDatabase() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryId = urlParams.get("id");
+      let url = API_BASE + "/api/exposure";
+      if (queryId) {
+        url = API_BASE + "/api/exposure/" + encodeURIComponent(queryId);
+      } else {
+        url = API_BASE + "/api/exposure?limit=1";
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      const data = await res.json();
+      const record = Array.isArray(data) ? data[0] : data;
+      if (!record || (!record.property_name && !record.coordinates)) return false;
+
+      applyParse(record);
+      const name = (typeof record.property_name === "object" ? record.property_name.value : record.property_name) || "risk profile";
+      toast("Retrieved '" + name + "' from database.");
+      return true;
+    } catch (e) {
+      console.warn("[Database Sync] Notice:", e.message);
+      return false;
+    }
+  }
+
+  // Hook all 'Review & complete' links to pass the active risk ID and persist to DB
+  document.querySelectorAll('a[href*="review.html"]').forEach(function (link) {
+    link.addEventListener("click", function () {
+      if (digested) {
+        const ref = (typeof state.reference === "object" ? state.reference.value : state.reference) || "";
+        if (ref) {
+          link.href = "review.html?id=" + encodeURIComponent(ref);
+        }
+      }
+    });
+  });
+
   window.KENYARE_API = API_BASE;
   window.IntakeApp = {
     applyPin: applyPin,
     getLat: getLat,
     getLon: getLon,
     payload: payload,
+    syncWithDatabase: syncWithDatabase
   };
 
   bind();
-  if (!restoreIntakeLock()) fillForm();
-  if (IS_REVIEW && digested) {
-    const id = (location.hash || "").replace(/^#/, "");
-    if (id) openAdjustView(id);
+  const hasLock = restoreIntakeLock();
+  if (!hasLock) fillForm();
+
+  // If on Review page, retrieve the record from the database
+  if (IS_REVIEW) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!hasLock || urlParams.has("id")) {
+      syncWithDatabase().then(function (loaded) {
+        const id = (location.hash || "").replace(/^#/, "");
+        if (id) openAdjustView(id);
+      });
+    } else {
+      const id = (location.hash || "").replace(/^#/, "");
+      if (id) openAdjustView(id);
+    }
   }
 })();
