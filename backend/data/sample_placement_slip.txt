@@ -1,0 +1,511 @@
+CONFIDENTIAL REINSURANCE PLACEMENT
+
+BROKER: Eastside Insurance Brokers Ltd
+PLACEMENT ADVISOR: James Kipchoge (j.kipchoge@eastside-brokers.co.ke)
+DATE ISSUED: 8 October 2026
+REFERENCE: EIB-NAI-LP-2026-001
+EXPIRY: 12 October 2026
+
+REINSURANCE PLACEMENT MEMORANDUM
+
+Dear Underwriter,
+
+Please find enclosed the particulars for our new placement:
+
+CLIENT: Landmark Plaza Commercial Development (Landmark Realty Investment Limited)
+YEAR CONSTRUCTION BEGAN: 2014
+COMPLETED: 2015
+ARCHITECT: BEAM Architects (Nairobi office)
+STRUCTURAL ENGINEER: Arup East Africa
+
+PRINCIPAL CONTACT:
+Mr. Rajesh Patel
+Landmark Realty Investment Limited
+Upper Hill, Nairobi
+Tel: +254 (20) 555-0147
+Email: r.patel@landmarkplaza.co.ke
+
+INSURANCE BROKER:
+Jane Mwangi, Account Manager
+Eastside Insurance Brokers Ltd
+Westlands, Nairobi
+jmwangi@eastside-brokers.co.ke
+
+LOCATION & PROPERTY DESCRIPTION
+
+STREET ADDRESS: Lot 12, Block 2A, Upper Hill Area, Nairobi CBD
+GPS COORDINATES: -1.2847°S, 36.8247°E
+ELEVATION: 1,612 meters above sea level
+ADJACENT TO: Upper Hill Drive (main access road)
+
+The property comprises a premium commercial office building with ground floor retail
+spaces and two basement parking levels. The structure is located in the heart of
+Nairobi's central business district, approximately 800 meters from the CBD center
+point.
+
+NEARBY LANDMARKS:
+- Kenyatta University (East) - 3.2 km
+- Kibra area (Southwest) - 2.1 km
+- Nairobi River (South) - 1.2 km
+- Karura Forest (North) - 2.8 km
+
+BUILDING SPECIFICATIONS - DETAILED
+
+GENERAL INFORMATION:
+Total Number of Floors: 18 (above ground) + 2 (basement)
+Basement Designation: B1 (parking level 1), B2 (parking level 2)
+
+GROSS FLOOR AREA: 24,500 m² (all levels combined)
+- Ground Floor: 2,150 m²
+- Typical Office Floor (F2-F17): 1,280 m² each
+- First Floor (Mezzanine retail): 1,850 m²
+- Basement levels: 2,100 m² each
+
+CONSTRUCTION CLASSIFICATION: RCC Frame with Shear Walls (Grade A+)
+Load-bearing walls constructed from reinforced concrete (M30 grade minimum)
+Main structural system: Moment-resisting frame designed for seismic Zone 4
+
+FOUNDATION SYSTEM:
+Pile foundation with 120 micropiles (diameter 450mm, depth 35m)
+Bearing capacity verified by Geotech Solutions Ltd (Report 2014-045)
+Foundation designed for lateral loads and potential liquefaction
+
+FLOOR SYSTEMS:
+- Floors F2-F17: Composite deck (steel deck + concrete) with 150mm concrete topping
+- Basement levels: Solid reinforced concrete slab (400mm thick)
+- Ground floor: Reinforced concrete (500mm) with epoxy coating
+
+STRUCTURAL HEIGHT:
+Building height (to roof edge): 64.8 meters
+Building height (to antenna): 71.2 meters
+Floor-to-floor height (typical): 3.8m
+Ground to first floor clearance: 4.2m (retail space)
+
+ROOF STRUCTURE:
+Primary: Steel truss framework with steel purlins
+Secondary: Metal deck with integrated drainage
+Covering: Waterproof membrane (Sika top-layer system, installed 2015)
+Parapet height: 1.2m above roof deck
+Roof total area: 1,850 m²
+
+EXTERIOR ENVELOPE:
+Curtain wall system: Unitized aluminum with Low-E double glazing (U-value 1.8)
+Exterior finish: Mix of glass, metal panels, and precast concrete
+Design load: 2.4 kN/m² wind pressure (130 km/h wind speed)
+
+INTERIOR SPECIFICATIONS:
+- Suspended ceiling (2.4m module) throughout office floors
+- False flooring: Raised access floor (500mm) on F2-F17
+- Office partitioning: Demountable walls (standard 2.7m height)
+- Retail areas: Polished concrete flooring (antistatic treated)
+
+BUILDING SYSTEMS & SERVICES
+
+MECHANICAL SYSTEMS (HVAC):
+- Central chiller plant (2 units, 300 TR each, located B2 level)
+- Rooftop AHUs (12 total units, 4-5 units per floor cluster)
+- HVAC ducting: Galvanized steel with aluminum lining
+- Fresh air intake: Rooftop location (north side, 65m elevation)
+- Exhaust stacks: Multiple locations (roof-mounted)
+- Facility Management Company: Duro Building Services Ltd (contract since 2015)
+
+POWER GENERATION BACKUP:
+MAIN GENERATOR UNIT 1:
+- Make/Model: Caterpillar C18 DITA (Diesel)
+- Capacity: 500 kVA (400 kW)
+- Location: Basement Level 1 (Central plant room, coordinates -1.28474°S, 36.82465°E within B1)
+- Installation: 2015
+- Last service: March 2026
+- Fuel tank capacity: 2,500 liters (underground storage, 4.5m below ground)
+- Run time on full tank: 42 hours at 75% load
+
+BACKUP GENERATOR UNIT 2:
+- Make/Model: Caterpillar C15 (Diesel)
+- Capacity: 300 kVA (240 kW)
+- Location: Basement Level 1 (East corner, coordinates -1.28480°S, 36.82452°E within B1)
+- Installation: 2018 (added for expanded operations)
+- Last service: June 2026
+- Fuel tank capacity: 1,800 liters (underground storage)
+- Run time on full tank: 48 hours at 75% load
+
+ADDITIONAL BACKUP SYSTEMS:
+- UPS Battery backup: 150 kVA (supports critical systems for 4 hours)
+- Location: Upper floor mechanical room (F17 plant level)
+- Battery storage: 60 x 48V lithium batteries
+- Automatic transfer switches: 3 units (ATS1 in B1, ATS2 in plant room, ATS3 in lobby)
+
+ELECTRICAL DISTRIBUTION:
+- Main incoming supply: 3-phase 415V, 630A from Kenya Power (dual feed)
+- Substation 1: Located B2, houses main transformer (500 kVA)
+- Substation 2: Located B1, houses secondary transformer (250 kVA)
+- Distribution boards: 24 MDBs (Main Distribution Boards) throughout building
+- Backup fuel delivery: Via supplier contract (Vivo Energy Kenya)
+
+WATER SYSTEMS:
+- Water main connection: 25mm (from municipal supply)
+- Primary storage tank: 150,000 liters (rooftop, elevated 64m)
+- Secondary storage tank: 50,000 liters (basement level 1, gravity circulation)
+- Pumping system: 3 x 15 kW submersible pumps (B1 level, automated controls)
+- Fire water tank: 25,000 liters (independent, pressurized system)
+- Estimated daily consumption: 45,000 liters (occupancy dependent)
+
+DRAINAGE & SEWAGE:
+- Wastewater treatment unit: Biological treatment plant (20 m³ capacity)
+- Located: Basement Level 2 (southern corner)
+- Effluent discharge: To municipal sewer via grease trap
+- Storm drainage: Separate system with silt traps connecting to municipal drains
+- Sump pump (basement): 2 units (7.5 kW each, automated level control)
+- Drainage testing: Last performed April 2026 (all clear)
+
+FIRE SUPPRESSION & SAFETY:
+- Sprinkler system: Wet-pipe throughout (installed 2015, last tested 2026)
+- System capacity: 1,200 m³/hour at 6 bar pressure
+- Fire pump: 2 x 100 kW electric pumps + 1 x 75 kW diesel backup
+- Fire water supply: Independent 25,000 liter tank (rooftop east corner)
+- Detection system: Heat and smoke detectors (networked, monitored 24/7)
+- Alarm system: Advanced fire alarm panel (Honeywell system, monitored)
+- Emergency lighting: LED backup (battery-powered, 3-hour autonomy)
+- Fire exits: 8 stairwells (distributed) + 4 external emergency exits
+
+BMS (BUILDING MANAGEMENT SYSTEM):
+- System: Niagara-based (Tridium platform)
+- Monitoring: 24/7 by Duro Building Services NOC (Network Operations Center)
+- Sensors: Temperature, humidity, CO2, lighting levels (600+ points)
+- Alert thresholds: Automated notifications via SMS/email for critical events
+- Historical data: Retained for 24 months
+
+SECURITY SYSTEMS:
+- CCTV: 120 cameras (IP-based, 4K resolution)
+- Recording: NVR storage 30-day retention
+- Access control: Card-based system (3,200 employees registered)
+- Biometric gates: 4 entry points (fingerprint + badge requirement)
+- Perimeter fencing: Electronic gates (automated bollards at main entrance)
+- Security staff: 24/7 on-site (10-person shift rotation)
+- Monitoring center: Alarm response by G4S Kenya (response time ~8 minutes)
+
+BUILDING AMENITIES & SERVICES
+
+RETAIL SPACES (Ground & Mezzanine):
+- Total retail area: 2,150 m²
+- Tenants: 12 retail outlets (coffee shops, bookstore, restaurants, ATMs)
+- Occupancy rate: 85% (10 of 12 spaces leased)
+- Average tenant lease term: 3 years
+- Parking: 180 retail customer spaces
+
+OFFICE FACILITIES:
+- Number of office units: 234 (sizes from 25m² to 350m²)
+- Current occupancy: 92% (215 units leased)
+- Typical office rent: KES 1,200-1,800 per m² per month
+- Enterprise tenants: 8 multinational companies (IT, Finance, Consulting)
+- Shared facilities: Breakout zones, meeting rooms, conference areas
+
+MEETING & CONFERENCE FACILITIES:
+- Board room (capacity 30): F5
+- Executive suites (capacity 8-12 each): 3 units distributed F6-F8
+- Training rooms: 2 units (capacity 40 each)
+- Presentation/auditorium space: 1 unit (capacity 100)
+- Video conferencing setup: All meeting rooms equipped
+
+PARKING FACILITIES:
+- Basement Level 1: 180 parking spaces (dedicated office tenants)
+- Basement Level 2: 120 parking spaces + 20 motorcycle bays
+- Surface parking: 40 spaces (ground level, marked area)
+- Total parking capacity: 340 vehicles
+- Parking management: Automated barrier gates with RFID/card systems
+- Parking revenue: KES 5,000-8,000 per space per month
+- EV charging stations: 12 chargers (installed 2023)
+
+RECREATIONAL & WELLNESS:
+- Gymnasium: 450 m² (F14), equipped with cardio and weights
+- Swimming pool: NOT present (removed during design phase)
+- Cafeteria: 1,200 m² (B1 level), capacity 200
+- Lounge areas: 4 break rooms (distributed floors F4, F9, F13, F16)
+- Wellness center: Occupational health clinic (F2)
+- Medical staff: 1 doctor + 2 nurses (on-site, Mon-Fri)
+
+FOOD SERVICE:
+- Central kitchen facility: 300 m² (B1 level)
+- Serving counter capacity: 300 meals per service
+- Menu: Mix of local and international cuisine
+- Vendor: Rainbow Catering Services Ltd (contract since 2018)
+- Waste disposal: Grease trap + organic waste composting
+
+BUSINESS SERVICES:
+- Reception/concierge: Ground floor (8 staff)
+- Mail room: 150 m² (B1 level)
+- Print shop: 200 m² (B1 level, photocopiers + binding equipment)
+- Courier/dispatch: Dedicated bay at loading dock
+
+BUILDING MAINTENANCE & CONDITION REPORT
+
+GENERAL CONDITION: Excellent (well-maintained, 11 years old)
+
+ROOF CONDITION:
+- Membrane integrity: Good (thermal imaging performed April 2026)
+- Thermal imaging identified: 2 minor areas requiring patching (~5 m² total)
+- Last major maintenance: Waterproofing system maintenance April 2026
+- Gutter cleaning: Quarterly (last performed September 2026)
+- Drainage outlets: Cleared, functioning normally
+
+FACADE & EXTERIOR:
+- Curtain wall inspection: Performed May 2026 (full external audit)
+- Sealant condition: Good (scheduled for resealing in 2028)
+- Glass condition: Excellent (no breakage, slight discoloration at west face)
+- Metal panels: Minor oxidation noted on north elevation (non-structural)
+- Structural integrity: No cracks or water staining observed
+
+INTERIOR FINISHES:
+- Flooring: Polished concrete (ground) in good condition; carpeting on office floors shows minor wear
+- Walls: Paint condition good; minor touch-ups needed in 3 areas (B1, F3, F12)
+- Suspended ceilings: Some tiles showing water staining in F4 area (localized AC condensation issue - rectified Sept 2026)
+- Accessibility: Fully compliant with wheelchairs, ramps, elevators functioning
+
+MECHANICAL SYSTEMS:
+- HVAC condition: Good (chillers serviced annually, last August 2026)
+- Boiler system: NOT present (chiller-based cooling only, no heating)
+- Ducting: Cleaned June 2026 (minor corrosion noted, not critical)
+- Filters: Replaced quarterly (last replaced September 2026)
+
+ELECTRICAL SYSTEMS:
+- Main distribution boards: Inspected June 2026 (no issues)
+- Generator load testing: Performed May 2026 (both units running at 85% capacity)
+- Power factor: 0.95 (good efficiency)
+- Earthing resistance: 2.8 ohms (acceptable range)
+- Lightning protection: System tested, functioning (2023 installation)
+
+PLUMBING & WATER:
+- Pipe condition: Good (copper/PVC mix, no leaks detected)
+- Water pressure: 2.8 bar (normal range)
+- Storage tanks: Annual inspection performed (August 2026)
+  - Rooftop tank: No sediment, clean
+  - Basement tank: Minor sediment (~50 liters), will be flushed next quarter
+- Sump pumps: Both tested and functioning (weekly test protocol)
+
+FIRE SAFETY SYSTEMS:
+- Sprinkler system: Full inspection May 2026 (all heads clear, water pressure good)
+- Fire alarm panel: Battery backed up, last tested August 2026
+- Emergency lighting: Test conducted (90% functionality, 2 units need replacement)
+- Fire exits: All clear and signage compliant (inspected September 2026)
+
+STRUCTURAL ASSESSMENT:
+- Foundation monitoring: No settlement observed (annual survey 2026)
+- Concrete testing: Core samples extracted (2 locations, 2024) - Grade verified as M30
+- Crack monitoring: No active cracks (minor hairline cracks in basement walls - non-structural)
+- Seismic resilience: Building designed for Zone 4, no upgrades required
+
+OCCUPANCY & TENANT PROFILE
+
+TOTAL BUILDING OCCUPANCY: ~850 permanent staff (weekdays, peak hours)
+SEASONAL VARIATION: ±10% (holiday periods, school breaks)
+
+OFFICE TENANT BREAKDOWN:
+1. Global Consulting Group - 850 m² (F3-F4) - 120 staff
+2. East Africa Tech Solutions - 650 m² (F5-F6) - 95 staff
+3. Financial Services Ltd - 1,200 m² (F7-F9) - 180 staff
+4. NGO International - 400 m² (F10) - 55 staff
+5. Marketing & Creative Agency - 350 m² (F11) - 50 staff
+6. Government Statistics Bureau - 600 m² (F12-F13) - 85 staff
+7. Tourism Board Regional Office - 400 m² (F14) - 60 staff
+8. Insurance Underwriting Firm - 1,100 m² (F15-F16) - 160 staff
+
+RETAIL OCCUPANCY:
+- Coffee House (StarBrew) - 250 m², 25 staff
+- Electronics Shop - 180 m²
+- Bookstore & Café - 300 m²
+- Restaurant (Mediterranean) - 400 m², 30 staff
+- ATM/Bank branches: 2 units
+- Mobile phone retail: 1 unit
+- Pharmacy - 100 m²
+
+PEAK HOURS: 08:00-17:00 weekdays
+OFF-PEAK: Nights (~50 staff), weekends (~30 staff)
+Estimated annual footfall (retail): 1.2 million visitors
+
+PREVIOUS LOSS HISTORY (11 YEARS: 2015-2026)
+
+LOSS #1: 2018, May
+Description: Water intrusion from AC condensation in F4 office area
+Cause: Blocked condensate drainage line
+Damage: Water staining on ceiling tiles, minor content damage
+Amount claimed: KES 850,000
+Status: Settled (June 2018)
+Remedial action: HVAC condensate system redesigned with secondary drain
+
+LOSS #2: 2021, July
+Description: Electrical fire in electrical distribution board (2nd floor)
+Cause: Arcing due to corroded connection (manufacturing defect)
+Damage: Minor damage to one MDB, no spread to surrounding areas
+Amount claimed: KES 240,000
+Status: Settled (August 2021)
+Remedial action: All MDBs inspected and rebuilt with improved connections
+
+LOSS #3: 2025, November
+Description: Vandalism and theft (ground floor retail area)
+Cause: Break-in via external service door
+Damage: Broken glass, display damage, inventory theft (~KES 120,000)
+Amount claimed: KES 120,000
+Status: Settled (December 2025)
+Remedial action: Service doors upgraded with additional security, CCTV expanded
+
+Total historical losses: KES 1,210,000 over 11 years
+Average annual loss: KES 110,000 (0.01% of TIV per year)
+Loss frequency: 3 events in 11 years (0.27 per year)
+
+FLOOD & WEATHER VULNERABILITY ASSESSMENT
+
+FLOOD HISTORY:
+No flood losses recorded at this location since construction (2015-2026).
+Nairobi CBD area: Low to moderate flood risk
+Proximity to Nairobi River: 1.2 km (south-southeast)
+River elevation: ~1,265m ASL (building at 1,612m)
+Height difference: 347 meters
+
+BASEMENT VULNERABILITY:
+- Basement 1 floor level: 1,609.5m ASL (2.5m below ground level)
+- Basement 2 floor level: 1,606.8m ASL (5.2m below ground level)
+- Groundwater table (estimated): 12-18m below surface (seasonal variation)
+- Flood potential: Minimal (terrain elevation provides natural protection)
+
+STORM DRAINAGE:
+- Municipal storm drain connection: Adequate sizing (verified 2024)
+- Sump pump capacity: 25 m³/hour (adequate for localized flooding)
+- Roof drainage system: 6 downspouts (distributed around perimeter)
+- Parking area drainage: Sloped toward central sump (grade change 1.2%)
+
+WIND VULNERABILITY:
+- Design wind speed: 130 km/h (Zone A rating)
+- Historical wind damage: None recorded
+- Highest wind gust recorded (Nairobi): ~85 km/h (March 2015)
+- Roof attachment: All equipment secured with mechanical fasteners
+- Curtain wall design: Tested to design loads, safety factor 1.5
+
+EARTHQUAKE RISK:
+- Building seismic design: Zone 4 compliance (Kenya Building Code)
+- Nearest fault: Nairobi-Kayole fault zone, 8 km east
+- Estimated seismic risk: Moderate (possible 5.5-6.0 magnitude event)
+- Building performance: Designed for up to 7.0 magnitude with < 2% drift
+- Structural monitoring: Annual visual inspection (no issues noted)
+
+OTHER WEATHER EVENTS:
+- Hail damage: Minimal risk (Nairobi altitude 1,600m reduces hail severity)
+- Lightning: Risk moderate; building equipped with lightning protection system
+- Heavy rainfall: Storm drains designed for 50-year recurrence interval
+
+CLAIMS MANAGEMENT & INSURANCE HISTORY
+
+CURRENT INSURER: East African Insurance Company plc
+Policy period: 1 Nov 2025 - 31 Oct 2026
+Annual premium: KES 2,450,000
+Claims history: 3 claims in past 11 years (see loss history above)
+
+BROKER OF RECORD:
+Eastside Insurance Brokers Ltd
+Account Manager: Jane Mwangi
+Established relationship: 2015 (from building completion)
+
+RISK MANAGEMENT:
+Annual facility audit: Conducted by third-party firm
+Last audit: May 2026 (all systems verified)
+Risk recommendations: All addressed (see maintenance section)
+Premium rating: A-Class (Good risk)
+
+ADDITIONAL BUILDING INFORMATION
+
+ARCHITECTURAL FEATURES:
+- Atrium: 3-story central atrium (F1-F3 level, natural lighting)
+- Green spaces: Rooftop garden (200 m²) with landscaping, installed 2021
+- Sustainability features: LED lighting throughout, solar passive design
+- LEED certification: NOT applicable (building predates LEED Africa requirements)
+
+CONSTRUCTION QUALITY:
+- Concrete slump test results (2015): 120mm, 125mm, 118mm (all within spec)
+- Steel certification: Grade 500B reinforcement (Tanzanian supply, mill certificates retained)
+- Waterproofing: Single-layer membrane system (tested 2026 - performing well)
+- Waste during construction: Minimal excess (efficient project management)
+
+BUILDING PERMITS & COMPLIANCE:
+- Original construction permit: #NAI-CBD-2014-1247
+- Occupancy certificate: Issued April 2015
+- Annual compliance: Fire safety certificate renewed annually (current valid to Oct 2027)
+- Building inspection: Municipal inspection scheduled for Q4 2026
+- Zoning compliance: CBD mixed-use zone, full compliance
+
+UTILITIES CONSUMPTION:
+- Average monthly electricity: 280,000 kWh (capacity 630A, utilization ~65%)
+- Average monthly water: 45,000 m³
+- Average monthly waste: 15 tons (managed via licensed contractor)
+- Backup generator usage: ~5% of operating hours (during peak demand/maintenance)
+
+OPERATING COSTS (ANNUAL):
+- Utilities: KES 12,500,000
+- Maintenance & repairs: KES 3,200,000
+- Security & cleaning: KES 4,800,000
+- Building management: KES 2,100,000
+- Insurance: KES 2,450,000
+- Total: KES 25,050,000
+
+UNDERWRITING SUMMARY & RECOMMENDATIONS
+
+OVERALL RISK PROFILE: A-CLASS (EXCELLENT RISK)
+
+POSITIVE FACTORS:
+✓ Well-maintained, premium property in CBD
+✓ Strong occupancy (92% office, 85% retail)
+✓ Minimal historical losses (KES 1.21M in 11 years = 0.011% TIV annually)
+✓ Excellent building systems (HVAC, electrical, fire suppression)
+✓ Dual backup power generation (500 kVA + 300 kVA capacity)
+✓ 24/7 professional management and monitoring
+✓ No flood history, elevated location with natural drainage
+✓ Full compliance with building codes and fire safety
+
+AREAS REQUIRING ATTENTION:
+⚠ Basement 2 fuel tank (underground diesel storage) - environmental risk mitigation recommended
+⚠ Age of roofing membrane (11 years old) - schedule replacement planning 2027-2028
+⚠ Some emergency lighting units require replacement (2 of 48 units non-functional)
+⚠ Basement wall hairline cracks - monitor (non-structural, cosmetic concern)
+
+RISK MITIGATING FEATURES:
+• Sump pump system with automated level controls
+• Dual electrical feeds from utility
+• Backup generators with fuel storage (42-48 hour autonomy)
+• Comprehensive BMS with 24/7 monitoring
+• Professional security with alarm response (8-minute average)
+• Annual facility audits and maintenance
+
+RECOMMENDATION:
+ACCEPT at standard rates. Risk is excellent for this class of property. Building demonstrates
+strong management practices, excellent systems, and minimal claims history.
+
+REQUIRED CONDITIONS:
+1. Proof of annual roofing membrane inspection (thereafter)
+2. Completion of basement 2 fuel tank secondary containment improvement (within 180 days)
+3. Emergency lighting replacement (within 90 days)
+
+FACULTATIVE FLOOD COVER (if requested):
+Nairobi CBD location presents minimal flood risk. If flood cover is sought, standard
+rates apply with 5% deductible or KES 5,000,000 minimum. Flood limit can be set at
+full TIV (KES 1,090,000,000) with confidence.
+
+PLACEMENT DETAILS
+
+CLASS OF BUSINESS: Commercial Property (Multi-Story Office & Retail)
+COVERAGE TYPE: All-Risks (excluding flood) - flood cover available upon request
+TERM: 12 months (01 November 2026 - 31 October 2027)
+
+INSURED INTEREST:
+Landmark Realty Investment Limited (owner/lessor)
+All occupying tenants/businesses operating within property
+
+DECLARATION:
+The insured hereby declares that the information contained herein is true, complete,
+and to the best of their knowledge, not misleading. All required documentation has
+been made available for underwriting review.
+
+SIGNATURE: _____________________  DATE: ___________________
+(Authorized representative, Landmark Realty Investment Limited)
+
+
+Document prepared by: Jane Mwangi, Account Manager
+Eastside Insurance Brokers Ltd
+Date: 8 October 2026
+Contact: +254 (20) 555-2847 | jmwangi@eastside-brokers.co.ke
