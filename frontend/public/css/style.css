@@ -1,0 +1,273 @@
+/* Kenya Re product surface — shared by Intake and Analysis
+   Logo navy #00274c · crimson #d11242 · silver #b2b2b2 */
+:root {
+  --bg: #f4f6f8;
+  --bg-sidebar: #ffffff;
+  --card: #ffffff;
+  --border: #e2e6ea;
+  --ink: #00274c;
+  --muted: #5c6570;
+  --accent: #00274c;
+  --accent-soft: #e6eef4;
+  --brand: #d11242;
+  --brand-soft: #fde8ee;
+  --green: #0f9d6e;
+  --green-soft: #e5f6ef;
+  --amber: #c27803;
+  --amber-soft: #fef3e2;
+  --blue: #00274c;
+  --blue-soft: #e6eef4;
+  --purple: #7c5cbf;
+  --purple-soft: #f1e9fb;
+  --red: #d11242;
+  --red-soft: #fde8ee;
+  --silver: #b2b2b2;
+  --radius: 18px;
+  --shadow: none;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.nav-btn.active {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.nav-btn:hover {
+  background: var(--accent-soft);
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.brand-wordmark {
+  height: 52px;
+  width: auto;
+  display: block;
+}
+
+input[type="number"],
+input[type="text"],
+select,
+textarea {
+  background: #faf8f4;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 12px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.btn-ghost {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 999px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.badge-extracted {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.badge-geocoded {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+.badge-dem {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+.badge-implied,
+.badge-derived {
+  background: #f0ece6;
+  color: var(--muted);
+}
+.badge-class_default {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.badge-human {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.badge-empty {
+  background: #f0ece6;
+  color: var(--muted);
+}
+
+.floor-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 220px;
+  justify-content: flex-end;
+}
+
+.floor-band {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.floor-upper {
+  background: var(--accent-soft);
+  color: var(--ink);
+  flex: 1;
+  min-height: 72px;
+}
+
+.floor-ground {
+  background: #f0ece6;
+  color: var(--ink);
+}
+
+.floor-street {
+  height: 8px;
+  border-radius: 99px;
+  background: repeating-linear-gradient(
+    90deg,
+    #d9d3c9 0 10px,
+    transparent 10px 18px
+  );
+  border: none;
+  padding: 0;
+}
+
+.floor-basement {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+.floor-plant {
+  border-left: 3px solid var(--amber);
+}
+
+.modal-scrim {
+  background: rgba(28, 25, 23, 0.35);
+}
+
+#map {
+  height: 420px;
+  width: 100%;
+  background: #eeeae3;
+}
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+}
+
+.fact span {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.fact strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.fact-span {
+  grid-column: 1 / -1;
+}
+
+.digested-on .workspace {
+  grid-template-columns: 1fr;
+}
+
+.digested-on #doc-col {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px 16px;
+  }
+  .digested-on .workspace {
+    grid-template-columns: 1fr;
+  }
+  .facts-grid {
+    grid-template-columns: 1fr;
+  }
+}

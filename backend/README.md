@@ -12,11 +12,11 @@ Copy-Item .env.example .env
 npm start
 ```
 
-`MAX_UPLOAD_BYTES` defaults to 10 MiB. The service exposes `GET /health` and `POST /api/extract`; the multipart field is `file`.
+`MAX_UPLOAD_BYTES` defaults to 10 MiB. The service exposes `GET /health` and `POST /api/extract`; the multipart field is `file`. CORS is open so the intake UI on port 5173 can call it. Slips may be `.txt`, `.md`, `.json`, `.pdf`, `.docx`, `.csv`, `.xlsx`, or `.xls`.
 
 ```powershell
 curl.exe -X POST http://localhost:3000/api/extract `
-  -F "file=@test-data/landmark-plaza.json"
+  -F "file=@test-data/landmark-plaza.txt"
 ```
 
 The response is exactly the extraction object defined in `src/schemas/exposure.schema.js`. Missing values are `null`, while `vital_considerations` is always an array. Gemini is accessed through LangChain and results are parsed and validated with Zod, with one validation retry. The fixture at `test-data/landmark-plaza.json` exercises the extraction path.

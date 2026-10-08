@@ -7,7 +7,7 @@ async function invokeGemini(context, apiKey, validationError = "") {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
   const model = new ChatGoogleGenerativeAI({
     apiKey,
-    model: "gemini-2.5-flash",
+    model: "gemini-3.8-flash",
     temperature: 0
   });
   const response = await model.invoke(extractionPrompt(context, validationError));

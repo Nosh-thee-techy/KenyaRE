@@ -5,7 +5,7 @@ const pdfParse = require("pdf-parse");
 const XLSX = require("xlsx");
 const { objectToText, normalizeText } = require("../utils/normalization");
 
-const supportedExtensions = new Set([".json", ".pdf", ".docx", ".csv", ".xlsx", ".xls"]);
+const supportedExtensions = new Set([".json", ".pdf", ".docx", ".csv", ".xlsx", ".xls", ".txt", ".md"]);
 
 async function loadDocument(file) {
   const extension = path.extname(file.originalname || "").toLowerCase();
@@ -13,6 +13,9 @@ async function loadDocument(file) {
     throw new Error(`Unsupported file format: ${extension || "unknown"}`);
   }
   try {
+    if (extension === ".txt" || extension === ".md") {
+      return normalizeText(file.buffer.toString("utf8"));
+    }
     if (extension === ".json") {
       const parsed = JSON.parse(file.buffer.toString("utf8"));
       return objectToText(parsed);
