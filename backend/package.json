@@ -1,0 +1,28 @@
+{
+  "name": "kenyare-document-extraction",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Request-scoped RAG document extraction service for Nairobi flood CAT exposure data",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@langchain/classic": "^1.0.52",
+    "@langchain/core": "^1.2.17",
+    "@langchain/google-genai": "^2.3.2",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "mammoth": "^1.10.0",
+    "multer": "^2.0.2",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
