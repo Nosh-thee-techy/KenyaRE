@@ -5,6 +5,8 @@
  */
 
 const { processBrokerSlip } = require('../src/intake/orchestrator');
+const { extractFromSlip } = require("../src/intake/mockRAG");
+const { applyFallbacks } = require("../src/intake/fallbackEngine");
 
 const LANDMARK_SHAPED_SLIP = [
   "CONFIDENTIAL REINSURANCE PLACEMENT",
@@ -146,8 +148,6 @@ async function runTests() {
   // TEST 5: Declared Sum Insured wins over GFA × Integrum median
   // -------------------------------------------------------------
   console.log("\n[TEST 5] Sum Insured on a non-Landmark slip must extract as TIV (not 21800×48000)...");
-  const { extractFromSlip } = require("../src/intake/mockRAG");
-  const { applyFallbacks } = require("../src/intake/fallbackEngine");
   const siSlip = [
     "PLACEMENT SLIP",
     "GROSS FLOOR AREA: 21,800 m²",
@@ -188,6 +188,52 @@ async function runTests() {
     !gfaOnly.audit.block_reasons.some((r) => r.includes("TIV not stated on slip")),
     "GFA present — missing TIV does not block the run"
   );
+
+  // -------------------------------------------------------------
+  // TEST 7: Alternate broker wording — extract stated fields, invent nothing
+  // -------------------------------------------------------------
+  console.log("\n[TEST 7] Alternate slip labels (address, SI, GFA, G+N, unsigned GPS)...");
+  const altSlip = [
+    "PLACEMENT SLIP",
+    "INSURED: Westlands Warehouse Ltd",
+    "RISK LOCATION: Parklands Road, Westlands, Nairobi",
+    "Coordinates -1.2681, 36.8102",
+    "Sum Insured: KES 80,000,000",
+    "GROSS FLOOR AREA: 4,200 sqm",
+    "CONSTRUCTION: stone masonry",
+    "The risk is a G+1 warehouse.",
+    "Building height: 8.5 m"
+  ].join("\n");
+  const altRaw = extractFromSlip(altSlip);
+  assert(altRaw.property_name && altRaw.property_name.includes("Westlands Warehouse"), "Insured maps to property_name");
+  assert(altRaw.address && altRaw.address.includes("Parklands Road"), "Risk Location maps to address");
+  assert(altRaw.lat === -1.2681 && altRaw.lon === 36.8102, "Signed lat/lon pair extracted");
+  assert(altRaw.tiv_kes === 80000000, "Sum Insured KES extracted");
+  assert(altRaw.floor_area_m2 === 4200, "GFA sqm extracted");
+  assert(altRaw.housing_class === "permanent_masonry", "stone masonry maps to permanent_masonry");
+  assert(altRaw.floors_above_ground === 2, "G+1 maps to 2 floors above ground");
+  assert(altRaw.total_height_m === 8.5, "Building height extracted");
+
+  const noGpsSlip = extractFromSlip(
+    [
+      "INSURED: Missing GPS Ltd",
+      "STREET ADDRESS: Upper Hill, Nairobi",
+      "Sum Insured: KES 12,000,000",
+      "GROSS FLOOR AREA: 800 m2",
+      "CONSTRUCTION CLASSIFICATION: RCC Frame",
+      "Number of storeys: 4"
+    ].join("\n")
+  );
+  assert(noGpsSlip.address && noGpsSlip.address.includes("Upper Hill"), "Address extracted when GPS absent");
+  assert(noGpsSlip.lat == null && noGpsSlip.lon == null, "GPS stays not found when unstated");
+  assert(noGpsSlip.tiv_kes === 12000000, "TIV extracted without GPS");
+  assert(noGpsSlip.floors_above_ground === 4, "Number of storeys extracted");
+  assert(noGpsSlip.total_height_m == null, "Height stays not found when unstated");
+  assert(noGpsSlip.basement_floors == null, "Basement stays not found when unstated");
+
+  const landmarkRaw = extractFromSlip(LANDMARK_SHAPED_SLIP);
+  assert(landmarkRaw.address && landmarkRaw.address.includes("Upper Hill"), "Landmark street address extracted");
+  assert(landmarkRaw.first_floor_height_m === 4.2, "Ground-to-first-floor clearance extracted as 4.2m");
 
   console.log("\n==================================================================");
   console.log(`   RESULTS: ${totalPassed} / ${totalTests} CHECKS PASSED (${Math.round(totalPassed/totalTests*100)}%)`);

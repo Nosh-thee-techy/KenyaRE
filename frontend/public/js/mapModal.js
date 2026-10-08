@@ -3,6 +3,42 @@
   let map;
   let marker;
   let rasterRect;
+  let pendingLat = null;
+  let pendingLon = null;
+  let pendingSource = "human";
+
+  function updateOkay() {
+    const ok = document.getElementById("map-ok");
+    const hint = document.getElementById("map-pin-hint");
+    if (ok) ok.disabled = pendingLat == null || pendingLon == null;
+    if (hint) {
+      if (pendingLat == null || pendingLon == null) {
+        hint.textContent = "Click the map to place a pin, then press Okay to save.";
+      } else {
+        hint.textContent =
+          "Pin at " +
+          pendingLat.toFixed(4) +
+          ", " +
+          pendingLon.toFixed(4) +
+          ". Press Okay to save.";
+      }
+    }
+  }
+
+  function stagePin(lat, lon, source) {
+    pendingLat = Number(lat);
+    pendingLon = Number(lon);
+    if (source) pendingSource = source;
+    updateOkay();
+  }
+
+  function confirmPin() {
+    if (pendingLat == null || pendingLon == null) return;
+    if (global.IntakeApp) {
+      global.IntakeApp.applyPin(pendingLat, pendingLon, pendingSource);
+    }
+    closeModal();
+  }
 
   function rasterBounds() {
     return L.latLngBounds(
@@ -26,9 +62,7 @@
       marker = L.marker(pos, { draggable: true }).addTo(map);
       marker.on("dragend", function () {
         const p = marker.getLatLng();
-        if (global.IntakeApp) {
-          global.IntakeApp.applyPin(p.lat, p.lng);
-        }
+        stagePin(p.lat, p.lng, "human");
       });
     } else {
       marker.setLatLng(pos);
@@ -55,9 +89,7 @@
         rasterRect.bindTooltip("Nairobi hazard raster", { sticky: true });
         map.on("click", function (e) {
           setMarker(e.latlng.lat, e.latlng.lng);
-          if (global.IntakeApp) {
-            global.IntakeApp.applyPin(e.latlng.lat, e.latlng.lng);
-          }
+          stagePin(e.latlng.lat, e.latlng.lng, "human");
         });
       }
       map.invalidateSize();
@@ -65,7 +97,12 @@
       const lon = global.IntakeApp && global.IntakeApp.getLon();
       if (lat != null && lon != null) {
         setMarker(lat, lon);
+        stagePin(lat, lon, "human");
       } else {
+        pendingLat = null;
+        pendingLon = null;
+        pendingSource = "human";
+        updateOkay();
         map.fitBounds(rasterBounds(), { padding: [24, 24] });
       }
     });
@@ -144,9 +181,7 @@
         btn.addEventListener("click", function () {
           const h = hits[Number(btn.getAttribute("data-hit"))];
           setMarker(h.lat, h.lon);
-          if (global.IntakeApp) {
-            global.IntakeApp.applyPin(h.lat, h.lon, "geocoded");
-          }
+          stagePin(h.lat, h.lon, "geocoded");
         });
       });
     } catch (err) {
@@ -158,7 +193,13 @@
   global.MapModal = {
     open: openModal,
     close: closeModal,
+    confirm: confirmPin,
     insideRaster: insideRaster,
     searchAddress: searchAddress,
   };
+
+  const okBtn = document.getElementById("map-ok");
+  if (okBtn) okBtn.addEventListener("click", confirmPin);
+  const cancelBtn = document.getElementById("map-cancel");
+  if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
 })(window);

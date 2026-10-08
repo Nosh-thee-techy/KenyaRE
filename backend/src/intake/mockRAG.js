@@ -4,7 +4,7 @@
  * Generic regexes only — no fixture risk is hardcoded here.
  */
 
-const KES = '(?:KES|KShs?|KSH|Ksh|Kenya\\s*Shillings?)';
+const KES = '(?:KES|KShs?|KSH|Ksh|Kenya\\s*Shillings?)\\.?';
 const MONEY = `([0-9][0-9,.\\s]*(?:\\s*(?:billion|bn|million|mn))?)`;
 
 function parseAmountToken(raw) {
@@ -32,8 +32,35 @@ function applyHemisphere(value, hemi) {
   return v;
 }
 
+function dmsToDecimal(deg, min, sec, hemi) {
+  const d = Math.abs(parseFloat(deg));
+  const m = parseFloat(min || 0);
+  const s = parseFloat(sec || 0);
+  if (![d, m, s].every(Number.isFinite)) return null;
+  let v = d + m / 60 + s / 3600;
+  if (parseFloat(deg) < 0) v = -v;
+  return applyHemisphere(v, hemi);
+}
+
 function looksLikeNairobi(lat, lon) {
   return lat >= -2.5 && lat <= 1.5 && lon >= 33.5 && lon <= 42.5;
+}
+
+const NEXT_FIELD =
+  /\s+(?=(?:GPS(?:\s+COORDINATES?)?|STREET\s+ADDRESS|RISK\s+LOCATION|REFERENCE|SUM(?:S)?\s+INSURED|DECLARED\s+(?:VALUE|SUM)|GROSS\s+FLOOR|GFA\b|CONSTRUCTION|CLASS\s+OF\s+BUSINESS|COVERAGE\s+TYPE|ELEVATION|TOTAL\s+NUMBER|NUMBER\s+OF\s+STOREYS|BUILDING\s+HEIGHT|SITUATED\s+AT|ADDRESS|INSURED|CLIENT)\b)/i;
+
+function clipField(value) {
+  if (!value) return value;
+  return String(value).split(NEXT_FIELD)[0].replace(/\s+/g, ' ').trim();
+}
+
+function lineValue(text, labels) {
+  const re = new RegExp(
+    `(?:${labels})\\s*[:\\-]\\s*([^\\r\\n]+)`,
+    'i'
+  );
+  const m = text.match(re);
+  return m ? clipField(m[1]) : null;
 }
 
 /**
@@ -84,10 +111,11 @@ function extractTiv(text) {
   const patterns = [
     new RegExp(`full\\s+TIV\\s*\\(\\s*${KES}\\s*${MONEY}\\s*\\)`, 'i'),
     new RegExp(`\\bTIV\\s*[:\\-]\\s*${KES}\\s*${MONEY}`, 'i'),
-    new RegExp(`(?:total\\s+)?sums?\\s+insured(?:\\s*\\([^)]*\\))?\\s*[:\\-]?\\s*${KES}\\s*${MONEY}`, 'i'),
-    new RegExp(`(?:total\\s+)?sums?\\s+insured(?:\\s*\\([^)]*\\))?\\s*[:\\-]?\\s*${MONEY}`, 'i'),
+    new RegExp(`(?:total\\s+)?(?:sums?\\s+insured|insured\\s+sum|declared\\s+(?:value|sum)|total\\s+insured\\s+value)(?:\\s*\\([^)]*\\))?\\s*[:\\-]?\\s*${KES}\\s*${MONEY}`, 'i'),
+    new RegExp(`(?:total\\s+)?(?:sums?\\s+insured|insured\\s+sum|declared\\s+(?:value|sum))(?:\\s*\\([^)]*\\))?\\s*[:\\-]?\\s*${MONEY}`, 'i'),
     new RegExp(`\\b(?:TSI|SI)\\s*[:\\-]\\s*${KES}\\s*${MONEY}`, 'i'),
-    new RegExp(`\\bTIV\\b[^\\n]{0,48}${KES}\\s*${MONEY}`, 'i')
+    new RegExp(`\\bTIV\\b[^\\n]{0,64}${KES}\\s*${MONEY}`, 'i'),
+    new RegExp(`${KES}\\s*${MONEY}[^\\n]{0,40}\\bTIV\\b`, 'i')
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -100,7 +128,7 @@ function extractTiv(text) {
 
 function extractGps(text) {
   const labeled = text.match(
-    /GPS\s*COORDINATES?\s*:\s*([+\-]?[0-9.]+)[°\s]*([NS])?\s*[,;/]\s*([+\-]?[0-9.]+)[°\s]*([EW])?/i
+    /GPS\s*(?:COORDINATES?)?\s*[:;]?\s+([+\-]?[0-9.]+)[°\s]*([NS])?\s*[,;/]\s*([+\-]?[0-9.]+)[°\s]*([EW])?/i
   );
   if (labeled) {
     const lat = applyHemisphere(labeled[1], labeled[2]);
@@ -118,12 +146,21 @@ function extractGps(text) {
   }
 
   const coords = text.match(
-    /(?:geo(?:graphic)?\s*)?coordinates\s*:\s*([+\-]?[0-9.]+)[°\s]*([NS])?\s*[,;/]\s*([+\-]?[0-9.]+)[°\s]*([EW])?/i
+    /(?:geo(?:graphic)?\s*)?coordinates\s*[:;]?\s+([+\-]?[0-9.]+)[°\s]*([NS])?\s*[,;/]\s*([+\-]?[0-9.]+)[°\s]*([EW])?/i
   );
   if (coords) {
     const lat = applyHemisphere(coords[1], coords[2]);
     const lon = applyHemisphere(coords[3], coords[4]);
     if (lat != null && lon != null) return { lat, lon };
+  }
+
+  const dms = text.match(
+    /(\d{1,2})\s*[°]\s*(\d{1,2})\s*['′]\s*(\d{1,2}(?:\.\d+)?)\s*[\"″]?\s*([NS])\s*[,;\s/]+\s*(\d{1,3})\s*[°]\s*(\d{1,2})\s*['′]\s*(\d{1,2}(?:\.\d+)?)\s*[\"″]?\s*([EW])/i
+  );
+  if (dms) {
+    const lat = dmsToDecimal(dms[1], dms[2], dms[3], dms[4]);
+    const lon = dmsToDecimal(dms[5], dms[6], dms[7], dms[8]);
+    if (lat != null && lon != null && looksLikeNairobi(lat, lon)) return { lat, lon };
   }
 
   const pair = text.match(
@@ -135,23 +172,75 @@ function extractGps(text) {
     if (lat != null && lon != null && looksLikeNairobi(lat, lon)) return { lat, lon };
   }
 
+  const signed = text.match(
+    /([+\-][0-1]?\d\.\d{3,})\s*[,;/\s]\s*([+\-]?3[3-9]\.\d{3,})/
+  );
+  if (signed) {
+    const lat = parseFloat(signed[1]);
+    const lon = parseFloat(signed[2]);
+    if (looksLikeNairobi(lat, lon)) return { lat, lon };
+  }
+
   return null;
 }
 
 function extractGfa(text) {
   const labeled = text.match(
-    /(?:gross\s+floor\s+area|total\s+floor\s+area|\bGFA\b|floor\s+area)\s*[:\-]?\s*\(?\s*([0-9][0-9,]*)\s*(?:m[²2]|sq\.?\s*m(?:et(?:re|er)s?)?|sqm)/i
+    /(?:gross\s+(?:floor|built[-\s]?up)\s+area|built[-\s]?up\s+area|total\s+floor\s+area|\bGFA\b|floor\s+area|gross\s+area)\s*[:\-]?\s*\(?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:m[²2]|sq\.?\s*m(?:et(?:re|er)s?)?|square\s*met(?:re|er)s?|sqm)/i
   );
   if (labeled) {
     const n = parseFloat(labeled[1].replace(/,/g, ''));
     if (Number.isFinite(n) && n > 0) return n;
   }
   const trailing = text.match(
-    /([0-9][0-9,]*)\s*(?:m[²2]|sqm)\s*(?:\((?:gross\s+)?floor\s+area|\(?\s*GFA)/i
+    /([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:m[²2]|sqm|sq\.?\s*m(?:et(?:re|er)s?)?)\s*(?:\((?:gross\s+)?(?:floor|built[-\s]?up)\s+area|\(?\s*GFA)/i
   );
   if (trailing) {
     const n = parseFloat(trailing[1].replace(/,/g, ''));
     if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function extractFloors(text) {
+  const labeled =
+    text.match(/Total Number of Floors:\s*(\d+)/i) ||
+    text.match(/(?:(?:total|no\.?|number)\s+of\s+)?(?:floors|storeys|stories)(?:\s+above\s+ground)?\s*[:\-]\s*(\d+)/i) ||
+    text.match(/(\d+)\s*(?:floors?|storeys?|stories)\s*(?:above\s+ground)?/i) ||
+    text.match(/(\d+)\s*-\s*storey/i);
+  if (labeled) {
+    const n = parseInt(labeled[1], 10);
+    if (Number.isFinite(n) && n > 0 && n < 200) return n;
+  }
+  const gPlus = text.match(/\bG\s*\+\s*(\d{1,2})\b/i);
+  if (gPlus) {
+    const n = parseInt(gPlus[1], 10);
+    if (Number.isFinite(n) && n >= 0 && n < 80) return n + 1;
+  }
+  return null;
+}
+
+function extractBasements(text) {
+  if (/(?:no|without|nil)\s+basement|basement[:\s]+(?:none|nil|0)\b/i.test(text)) {
+    return 0;
+  }
+  const numbered =
+    text.match(/(\d+)\s*\(basement\)/i) ||
+    text.match(/(?:basement(?:\s+floors?)?|basements)\s*[:\-]?\s*(\d+)/i) ||
+    text.match(/(\d+)\s+basement/i);
+  if (numbered) {
+    const n = parseInt(numbered[1], 10);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  if (/Basement Designation:\s*B1,\s*B2/i.test(text) || /two basement/i.test(text)) {
+    return 2;
+  }
+  const bLevels = text.match(/\bB(\d)\b/gi);
+  if (bLevels && bLevels.length) {
+    const max = Math.max(
+      ...bLevels.map((t) => parseInt(String(t).replace(/\D/g, ''), 10)).filter(Number.isFinite)
+    );
+    if (max > 0 && max <= 6) return max;
   }
   return null;
 }
@@ -168,10 +257,12 @@ function extractFromSlip(text = '') {
     return result;
   }
 
-  // 1. Client / Property Name
-  const clientMatch = text.match(/(?:CLIENT|INSURED|ASSURED)\s*:\s*([^\r\n]+)/i);
-  if (clientMatch) {
-    result.property_name = clientMatch[1].replace(/\(.*?\)/g, '').trim();
+  const name = lineValue(
+    text,
+    'CLIENT|NAME OF INSURED|THE INSURED|INSURED(?!\\s+INTEREST)|ASSURED|PROPERTY(?:\\s+NAME)?|RISK NAME|NAME OF (?:THE )?RISK'
+  );
+  if (name) {
+    result.property_name = name.replace(/\(.*?\)/g, '').trim();
   }
 
   const refMatch = text.match(/REFERENCE:\s*([A-Z0-9\-]+)/i);
@@ -179,24 +270,28 @@ function extractFromSlip(text = '') {
     result.reference = refMatch[1].trim();
   }
 
-  // 2. GPS
   const gps = extractGps(text);
   if (gps) {
     result.lat = gps.lat;
     result.lon = gps.lon;
   }
 
-  const addrMatch = text.match(/(?:STREET\s+ADDRESS|ADDRESS|SITUATED\s+AT)\s*:\s*([^\r\n]+)/i);
-  if (addrMatch) {
-    result.address = addrMatch[1].trim();
+  const address = lineValue(
+    text,
+    'STREET\\s+ADDRESS|RISK\\s+LOCATION|SITUATION(?:\\s+OF\\s+RISK)?|SITUATED\\s+AT|PROPERTY\\s+ADDRESS|LOCATION(?!\\s*:\\s*Basement)|ADDRESS'
+  );
+  if (address) {
+    result.address = address.replace(/\s+/g, ' ').trim();
   }
 
-  const elevMatch = text.match(/ELEVATION:\s*([0-9,]+)\s*meters/i);
+  const elevMatch =
+    text.match(/ELEVATION:\s*([0-9,]+)\s*meters/i) ||
+    text.match(/(?:elevation|asl)\s*[:\-]?\s*([0-9,]+)\s*m(?:eters?)?(?:\s*(?:asl|above\s+sea\s+level))?/i);
   if (elevMatch) {
-    result.elevation_m = parseFloat(elevMatch[1].replace(/,/g, ''));
+    const n = parseFloat(elevMatch[1].replace(/,/g, ''));
+    if (Number.isFinite(n) && n > 0) result.elevation_m = n;
   }
 
-  // 3. Construction — labelled line first, then whole-slip wording. Never default.
   const constrMatch = text.match(
     /(?:CONSTRUCTION\s+CLASSIFICATION|CONSTRUCTION\s+CLASS|CONSTRUCTION\s+TYPE|TYPE\s+OF\s+CONSTRUCTION|BUILDING\s+(?:CLASS|CONSTRUCTION|TYPE)|CONSTRUCTION)\s*:\s*([^\r\n]+)/i
   );
@@ -209,64 +304,64 @@ function extractFromSlip(text = '') {
     if (mapped) result.housing_class = mapped;
   }
 
-  // 4. Floors & Height
-  const floorsMatch =
-    text.match(/Total Number of Floors:\s*(\d+)/i) ||
-    text.match(/(\d+)\s*(?:floors?|storeys?|stories)\s*(?:above\s+ground)?/i);
-  if (floorsMatch) {
-    result.floors_above_ground = parseInt(floorsMatch[1], 10);
-  }
+  const floors = extractFloors(text);
+  if (floors != null) result.floors_above_ground = floors;
 
   const heightMatch =
     text.match(/Building height \(to roof edge\):\s*([0-9.]+)\s*meters/i) ||
-    text.match(/(?:building\s+height|height\s+to\s+(?:roof|eaves))\s*[:\-]?\s*([0-9.]+)\s*m(?:eters?)?/i);
+    text.match(/(?:building\s+height|height\s+to\s+(?:roof|eaves)|roof\s+height|overall\s+height)\s*[:\-]?\s*([0-9.]+)\s*m(?:eters?)?/i);
   if (heightMatch) {
-    result.total_height_m = parseFloat(heightMatch[1]);
+    const h = parseFloat(heightMatch[1]);
+    if (Number.isFinite(h) && h > 0) result.total_height_m = h;
   }
 
-  const basementMatch =
-    text.match(/(\d+)\s*\(basement\)/i) ||
-    text.match(/Basement Designation:\s*B1,\s*B2/i) ||
-    text.match(/two basement/i) ||
-    text.match(/(\d+)\s*basement/i);
-  if (basementMatch) {
-    const n = parseInt(basementMatch[1], 10);
-    result.basement_floors = Number.isFinite(n) && n > 0 ? n : 2;
+  const plinthMatch = text.match(
+    /(?:ground\s+to\s+first\s+floor|plinth(?:\s+height)?|first\s+floor\s+(?:height|clearance)|finished\s+floor\s+level)[^\n]{0,32}?([0-9.]+)\s*m/i
+  );
+  if (plinthMatch) {
+    const p = parseFloat(plinthMatch[1]);
+    if (Number.isFinite(p) && p > 0) result.first_floor_height_m = p;
   }
+
+  const basement = extractBasements(text);
+  if (basement != null) result.basement_floors = basement;
 
   const lowerText = text.toLowerCase();
   const hasBasementPlant =
     (lowerText.includes('generator') && (lowerText.includes('basement') || lowerText.includes('b1'))) ||
     (lowerText.includes('chiller') && (lowerText.includes('basement') || lowerText.includes('b2'))) ||
     (lowerText.includes('transformer') && (lowerText.includes('basement') || lowerText.includes('substation 1')));
-  result.critical_plant_in_basement = hasBasementPlant;
+  if (hasBasementPlant) {
+    result.critical_plant_in_basement = true;
+  }
 
-  // 5. Floor Area (GFA)
   const gfa = extractGfa(text);
   if (gfa != null) result.floor_area_m2 = gfa;
 
-  // 6. Valuation (TIV) — declared sum insured only; never inferred here
   const tiv = extractTiv(text);
   if (tiv != null) result.tiv_kes = tiv;
 
-  // 7. Coverage & Subject
-  const covMatch = text.match(/COVERAGE TYPE:\s*([^\r\n]+)/i);
+  const covMatch = text.match(/(?:COVERAGE\s+TYPE|TYPE\s+OF\s+COVER|COVER(?:AGE)?)\s*:\s*([^\r\n]+)/i);
   if (covMatch) {
-    result.coverage_type = covMatch[1].trim();
+    result.coverage_type = clipField(covMatch[1]);
   }
 
-  const cobMatch = text.match(/CLASS OF BUSINESS:\s*([^\r\n]+)/i);
+  const cobMatch = text.match(/(?:CLASS OF BUSINESS|OCCUPANCY|OCCUPATION)\s*:\s*([^\r\n]+)/i);
   if (cobMatch) {
-    result.class_of_business = cobMatch[1].trim();
+    result.class_of_business = clipField(cobMatch[1]);
   }
 
-  result.flood_cover_requested = lowerText.includes('flood cover') || lowerText.includes('facultative flood');
+  result.flood_cover_requested =
+    lowerText.includes('flood cover') || lowerText.includes('facultative flood');
 
-  // 8. Deductible & Policy Limit
-  const dedMatch = text.match(/(\d+)%\s*deductible or KES\s*([0-9,]+)\s*minimum/i);
+  const dedMatch =
+    text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:deductible|excess)(?:\s+or\s+(?:KES|KShs?)\.?\s*([0-9,]+)\s*minimum)?/i) ||
+    text.match(/(\d+(?:\.\d+)?)\s*%\s*deductible or KES\s*([0-9,]+)\s*minimum/i);
   if (dedMatch) {
     result.deductible_pct = parseFloat(dedMatch[1]) / 100.0;
-    result.deductible_min_kes = parseFloat(dedMatch[2].replace(/,/g, ''));
+    if (dedMatch[2]) {
+      result.deductible_min_kes = parseFloat(dedMatch[2].replace(/,/g, ''));
+    }
   }
 
   if (result.tiv_kes) {

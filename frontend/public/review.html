@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kenya Re · Review</title>
-    <link rel="icon" type="image/svg+xml" href="brand/favicon.svg" />
+    <link rel="icon" type="image/png" href="brand/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,7 +23,7 @@
       <aside class="sidebar">
         <a class="brand-link" href="index.html" title="Kenya Re">
           <span class="brand-tile">
-            <img class="brand-mark" src="brand/kenya-re-mark.svg" alt="Kenya Re" />
+            <img class="brand-mark" src="brand/kenya-re-logo.png" alt="Kenya Re" />
           </span>
         </a>
         <nav class="sidebar-nav">
@@ -50,14 +50,14 @@
       </aside>
 
       <div class="flex flex-col min-w-0 min-h-screen">
-        <header class="flex items-center justify-between px-8 py-5">
-          <div>
-            <p class="text-xs text-[var(--muted)]">Nairobi pluvial · facultative</p>
-            <h1 class="text-[28px] leading-none font-semibold tracking-tight mt-1">Review</h1>
+        <header class="page-head">
+          <div class="page-head-main">
+            <p class="page-kicker">Nairobi pluvial · facultative</p>
+            <h1 class="display-title">Review</h1>
           </div>
-          <div class="flex items-center gap-3">
-            <span id="property_name" class="text-sm text-[var(--muted)]">No risk loaded</span>
-            <span class="mono text-xs text-[var(--muted)]" id="reference"></span>
+          <div class="page-head-meta">
+            <span id="property_name" class="risk-chip">No risk loaded</span>
+            <span class="mono page-head-ref" id="reference"></span>
             <button id="unlock-edit-btn" type="button" class="hidden btn-ghost px-4 py-2 text-sm">
               Unlock to edit
             </button>
@@ -214,7 +214,7 @@
                   <div id="plant-warning" class="hidden text-sm rounded-2xl px-3 py-2" style="background: var(--amber-soft); color: var(--amber)">
                     Basement ingress: generators and chillers in B1/B2. Shallow pooling can still destroy plant via ramps.
                   </div>
-                  <div>
+                  <div class="flex flex-col min-h-[480px]">
                     <h2 class="text-sm font-medium mb-2">Floor stack</h2>
                     <div id="floor-stack" class="floor-stack"></div>
                   </div>
@@ -296,21 +296,14 @@
         </div>
         <div id="geocode-results" class="max-h-28 overflow-auto text-sm"></div>
         <div id="map"></div>
-        <p class="px-5 py-3 text-xs text-[var(--muted)]">
-          Click the map to set coordinates as human. Rectangle is the Copernicus clip.
-        </p>
-      </div>
-    </div>
-
-    <div id="handoff-modal" class="hidden fixed inset-0 modal-scrim z-50 flex items-center justify-center p-4">
-      <div class="card w-full max-w-2xl overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h3 class="text-sm font-medium">Handoff JSON · engine offline</h3>
-          <button id="handoff-close" type="button" class="text-sm text-[var(--muted)]">Close</button>
-        </div>
-        <pre id="handoff-json" class="p-5 text-xs mono overflow-auto max-h-[70vh] text-[var(--ink)]"></pre>
-        <div class="px-5 pb-5">
-          <a href="analysis.html" class="btn-primary inline-block px-4 py-2 text-sm">Open analysis overview</a>
+        <div class="px-5 py-3 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
+          <p id="map-pin-hint" class="text-xs text-[var(--muted)]">
+            Click the map to place a pin, then press Okay to save.
+          </p>
+          <div class="flex gap-2">
+            <button id="map-cancel" type="button" class="btn-ghost px-4 py-2 text-sm">Cancel</button>
+            <button id="map-ok" type="button" class="btn-primary px-4 py-2 text-sm" disabled>Okay</button>
+          </div>
         </div>
       </div>
     </div>

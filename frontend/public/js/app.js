@@ -56,6 +56,7 @@
   let pendingFile = null;
   let pendingOverrides = null;
   let reviewAwaitingPin = false;
+  let wizardSkipped = {};
   let reviewPrevFocus = null;
 
   function field(obj, path) {
@@ -573,50 +574,78 @@
   }
 
   function renderStack() {
-    const floors = num(field(state, "exposure.floors_above_ground.value")) || 1;
+    const statedFloors = num(field(state, "exposure.floors_above_ground.value"));
+    const floors = statedFloors == null ? 1 : Math.max(1, statedFloors);
     const basements = num(field(state, "exposure.basement_floors.value")) || 0;
     const plant = Boolean(field(state, "exposure.critical_plant_in_basement.value"));
     const plinth = num(field(state, "exposure.first_floor_height_m.value"));
     const host = byId("floor-stack");
     if (!host) return;
-    const parts = [];
-    const upperTop = floors;
-    const upperFrom = Math.min(2, floors);
-    if (floors >= 2) {
-      parts.push(
-        '<div class="floor-band floor-upper"><div class="text-[10px] uppercase tracking-widest opacity-70">Upper floors</div><div>F' +
-          upperFrom +
-          "–F" +
-          upperTop +
-          " · dry office / residential</div></div>"
+
+    function windows(n) {
+      let html = '<span class="building-windows" aria-hidden="true">';
+      for (let i = 0; i < n; i++) html += '<i class="building-win"></i>';
+      return html + "</span>";
+    }
+
+    function plate(label, note, kind) {
+      return (
+        '<div class="building-floor building-' +
+        kind +
+        '"><span class="building-wall"></span><div class="building-plate"><span class="building-flabel">' +
+        label +
+        "</span>" +
+        (note ? '<span class="building-note">' + note + "</span>" : "") +
+        windows(5) +
+        '</div><span class="building-wall"></span></div>'
       );
+    }
+
+    const height = num(field(state, "exposure.total_height_m.value"));
+    const heightLabel =
+      height != null ? height + " m" : "Height not found";
+
+    const parts = [
+      '<div class="building-wrap">',
+      '<div class="building-elev">',
+      '<div class="building-roof" title="Roof"></div>'
+    ];
+    for (let f = floors; f >= 2; f--) {
+      parts.push(plate("F" + f, "", "upper"));
     }
     parts.push(
-      '<div class="floor-band floor-ground"><div class="text-[10px] uppercase tracking-widest opacity-60">Ground</div><div>Finished floor' +
-        (plinth != null ? " · plinth " + plinth + " m" : "") +
-        "</div></div>"
+      plate(
+        "G",
+        "Ground" + (plinth != null ? " · plinth " + plinth + " m" : ""),
+        "ground"
+      )
     );
-    parts.push('<div class="floor-street" title="Street runoff"></div>');
-    for (let b = 1; b <= basements; b++) {
-      const plantNote =
-        plant && b <= 2
-          ? ' <span class="badge" style="background:var(--brand-soft);color:var(--brand)">Critical plant</span>'
-          : "";
-      parts.push(
-        '<div class="floor-band floor-basement' +
-          (plant ? " floor-plant" : "") +
-          '"><div class="text-[10px] uppercase tracking-widest">Basement B' +
-          b +
-          "</div><div>Below grade" +
-          plantNote +
-          "</div></div>"
-      );
+    parts.push('<div class="building-grade" title="Street / grade"></div>');
+    if (basements) {
+      parts.push('<div class="building-subgrade">');
+      for (let b = 1; b <= basements; b++) {
+        const note =
+          plant && b <= 2
+            ? '<span class="badge" style="background:var(--brand-soft);color:var(--brand)">Critical plant</span>'
+            : "Below grade";
+        parts.push(plate("B" + b, note, plant && b <= 2 ? "plant" : "basement"));
+      }
+      parts.push("</div>");
     }
-    if (!basements) {
-      parts.push(
-        '<div class="text-[10px] text-[var(--muted)] px-1">No basement (default 0 if unstated)</div>'
-      );
-    }
+    parts.push("</div>");
+    parts.push(
+      '<div class="building-ruler" aria-label="Building height">' +
+        '<span class="building-ruler-top">' +
+        heightLabel +
+        "</span>" +
+        '<span class="building-ruler-line"></span>' +
+        '<span class="building-ruler-bot">0 m · grade</span>' +
+        (basements
+          ? '<span class="building-ruler-sub">B' + basements + "</span>"
+          : "") +
+        "</div>"
+    );
+    parts.push("</div>");
     host.innerHTML = parts.join("");
   }
 
@@ -700,13 +729,90 @@
     return Boolean(el && !el.classList.contains("hidden"));
   }
 
+  function propertyName() {
+    return typeof state.property_name === "string"
+      ? state.property_name
+      : field(state, "property_name.value");
+  }
+
+  function getGeocodeSuggestion() {
+    const s = state.audit && state.audit.geocode_suggestion;
+    if (s && s.lat != null && s.lon != null) return s;
+    const src = field(state, "coordinates.lat.source");
+    if (src === "geocoded" && getLat() != null && getLon() != null) {
+      return {
+        query: "",
+        label: "Looked up from the slip address",
+        lat: getLat(),
+        lon: getLon(),
+      };
+    }
+    return null;
+  }
+
+  function locationCopy() {
+    const sug = getGeocodeSuggestion();
+    if (sug && sug.lat != null && sug.lon != null) {
+      const q = sug.query
+        ? "“" + sug.query + "”"
+        : "the address on the slip";
+      return {
+        title: "Is this the location?",
+        lead:
+          "I didn’t find GPS on the slip. I searched " +
+          q +
+          " and found this. Is this the one, or would you like to pin?",
+      };
+    }
+    return {
+      title: "Where is the building?",
+      lead: "I didn’t find GPS on the slip. Pin it on the Nairobi map, then press Okay.",
+    };
+  }
+
+  async function enrichGeocodeSuggestion() {
+    const latSrc = field(state, "coordinates.lat.source");
+    if (latSrc === "extracted" && getLat() != null) return;
+    if (state.audit && state.audit.geocode_confirmed) return;
+    if (state.audit && state.audit.geocode_suggestion) return;
+    const q = (
+      (state.audit && state.audit.extracted_address) ||
+      (state.audit && state.audit.geocode_suggestion && state.audit.geocode_suggestion.query) ||
+      propertyName() ||
+      ""
+    ).trim();
+    if (!q || q === "Unnamed Property") return;
+    try {
+      const res = await fetch(
+        API_BASE + "/api/intake/geocode?q=" + encodeURIComponent(q)
+      );
+      if (!res.ok) return;
+      const hits = await res.json();
+      const hit = Array.isArray(hits) ? hits[0] : null;
+      if (!hit || hit.lat == null || hit.lon == null) return;
+      if (!state.audit) state.audit = {};
+      state.audit.geocode_suggestion = {
+        query: q,
+        label: hit.label,
+        lat: hit.lat,
+        lon: hit.lon,
+      };
+    } catch (_) {}
+  }
+
   function computeReviewDigest() {
     const lat = getLat();
     const lon = getLon();
     const locPresent = lat != null && lon != null;
+    const latSrc = field(state, "coordinates.lat.source");
+    const locConfirmed =
+      locPresent &&
+      (latSrc === "extracted" ||
+        latSrc === "human" ||
+        Boolean(state.audit && state.audit.geocode_confirmed));
     const outsideRaster =
-      locPresent && !window.MapModal.insideRaster(lat, lon);
-    const gpsMissing = !locPresent || outsideRaster;
+      locConfirmed && !window.MapModal.insideRaster(lat, lon);
+    const gpsMissing = !locConfirmed || outsideRaster;
 
     const klass = taggedAt("exposure.housing_class");
     const classFromSlip =
@@ -736,7 +842,7 @@
         id: "location",
         label: "Location (GPS)",
         present: !gpsMissing,
-        hint: locPresent
+        hint: outsideRaster
           ? "Pin is outside the Nairobi raster."
           : "No coordinates on the slip.",
         required: true,
@@ -780,9 +886,9 @@
         present: floorsFromSlip,
         hint: "Not found on the slip.",
         required: false,
-        input: "adjust",
+        input: "floors",
         formId: "floors",
-        prompt: false,
+        prompt: true,
       },
       {
         id: "height",
@@ -790,9 +896,9 @@
         present: heightFromSlip,
         hint: "Not found on the slip.",
         required: false,
-        input: "adjust",
+        input: "height",
         formId: "height",
-        prompt: false,
+        prompt: true,
       },
     ];
 
@@ -836,21 +942,51 @@
     const labelExtra = item.required ? " · required" : "";
     let cta = "";
     if (item.input === "pin") {
-      cta =
-        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="pin">Pin on Nairobi map</button>';
+      const sug = getGeocodeSuggestion();
+      if (sug && sug.lat != null && sug.lon != null) {
+        cta =
+          '<div class="geo-suggest">' +
+          '<p class="review-item-value">' +
+          escapeHtml(sug.label || "A Nairobi match") +
+          "</p>" +
+          '<p class="mono text-sm">' +
+          Number(sug.lat).toFixed(4) +
+          ", " +
+          Number(sug.lon).toFixed(4) +
+          "</p>" +
+          '<div class="review-gap-row">' +
+          '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="accept-geo">Yes, that is the one</button>' +
+          '<button type="button" class="btn-ghost px-3 py-2 text-sm" data-review-cta="pin">No, I will pin</button>' +
+          "</div></div>";
+      } else {
+        cta =
+          '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="pin">Pin on Nairobi map</button>';
+      }
     } else if (item.input === "class") {
       cta = classSelectHtml();
     } else if (item.input === "tiv") {
       cta =
         '<div class="review-gap-row">' +
         '<input id="review-in-tiv" type="text" inputmode="numeric" class="px-3 py-2 mono text-sm" placeholder="TIV (KES)" />' +
-        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-tiv">Apply</button>' +
+        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-tiv">Okay</button>' +
         "</div>";
     } else if (item.input === "gfa") {
       cta =
         '<div class="review-gap-row">' +
         '<input id="review-in-gfa" type="number" class="px-3 py-2 mono text-sm" placeholder="GFA m²" />' +
-        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-gfa">Apply</button>' +
+        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-gfa">Okay</button>' +
+        "</div>";
+    } else if (item.input === "floors") {
+      cta =
+        '<div class="review-gap-row">' +
+        '<input id="review-in-floors" type="number" min="1" class="px-3 py-2 mono text-sm" placeholder="Floors" />' +
+        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-floors">Okay</button>' +
+        "</div>";
+    } else if (item.input === "height") {
+      cta =
+        '<div class="review-gap-row">' +
+        '<input id="review-in-height" type="number" step="0.1" class="px-3 py-2 mono text-sm" placeholder="Height m" />' +
+        '<button type="button" class="btn-primary px-3 py-2 text-sm" data-review-cta="apply-height">Okay</button>' +
         "</div>";
     } else {
       cta =
@@ -858,6 +994,7 @@
         escapeHtml(item.formId || "") +
         '">Enter on Review</button>';
     }
+    const hideHint = item.input === "pin" && getGeocodeSuggestion();
     return (
       '<li class="review-gap' +
       req +
@@ -866,34 +1003,85 @@
       '"><span class="review-item-label">' +
       escapeHtml(item.label) +
       labelExtra +
-      '</span><span class="review-item-value">' +
-      escapeHtml(item.hint || "Not found on the slip.") +
       "</span>" +
+      (hideHint
+        ? ""
+        : '<span class="review-item-value">' +
+          escapeHtml(item.hint || "Not found on the slip.") +
+          "</span>") +
       cta +
       "</li>"
     );
+  }
+
+  const GAP_COPY = {
+    location: {
+      title: "Where is the building?",
+      lead: "I didn’t find GPS on the slip. Pin it on the Nairobi map, then press Okay.",
+    },
+    class: {
+      title: "What is the construction?",
+      lead: "Class was not found. Choose one so we do not guess masonry.",
+    },
+    tiv: {
+      title: "What is the sum insured?",
+      lead: "TIV was not found. Enter the declared amount in KES.",
+    },
+    gfa: {
+      title: "What is the floor area?",
+      lead: "Gross floor area was not found. Enter square metres.",
+    },
+    floors: {
+      title: "How many floors above ground?",
+      lead: "Storeys were not stated. Enter a number, or skip.",
+    },
+    height: {
+      title: "What is the building height?",
+      lead: "Height was not stated. Enter metres to the roof, or skip.",
+    },
+  };
+
+  function wizardGaps() {
+    return computeReviewDigest().gapItems.filter(function (it) {
+      return !wizardSkipped[it.id];
+    });
   }
 
   function renderReviewModal() {
     const digest = computeReviewDigest();
     const missingEl = document.getElementById("review-missing");
     const lead = document.getElementById("review-lead");
+    const title = document.getElementById("review-title");
+    const progress = document.getElementById("review-progress");
     if (!missingEl) return digest;
 
-    missingEl.innerHTML = digest.gapItems.length
-      ? digest.gapItems
-          .map(function (it) {
-            return reviewGapHtml(it);
-          })
-          .join("")
-      : "";
+    const remaining = wizardGaps();
+    const total = digest.gapItems.length;
+    const done = total - remaining.length;
+    const item = remaining[0];
 
-    if (lead) {
-      lead.textContent = digest.gpsMissing
-        ? "Location is never invented. Pin the building, then fill any other gaps. Run stays blocked until GPS, class, and TIV or GFA are set."
-        : "Use the actions below. Run stays blocked until GPS, class, and TIV or GFA are set.";
+    if (!item) {
+      missingEl.innerHTML = "";
+      if (title) title.textContent = "That’s everything we needed to ask";
+      if (lead) lead.textContent = "You can go to Review when you are ready.";
+      if (progress) progress.textContent = "";
+      return digest;
     }
 
+    const copy =
+      item.id === "location"
+        ? locationCopy()
+        : GAP_COPY[item.id] || {
+            title: item.label + " was not found",
+            lead: item.hint || "Not found on the slip.",
+          };
+    if (title) title.textContent = copy.title;
+    if (lead) lead.textContent = copy.lead;
+    if (progress) {
+      progress.textContent =
+        "Question " + (done + 1) + " of " + total;
+    }
+    missingEl.innerHTML = reviewGapHtml(item);
     return digest;
   }
 
@@ -917,19 +1105,22 @@
     if (card) card.classList.toggle("hidden", digest.gapItems.length === 0);
     if (lead) {
       lead.textContent = digest.gpsMissing
-        ? "Location is never invented. Pin the building, then fill any other gaps."
+        ? locationCopy().lead
         : "These fields were not found on the slip.";
     }
   }
 
   function focusReview() {
+    const accept = document.querySelector(
+      '#review-missing [data-review-cta="accept-geo"]'
+    );
     const pin = document.querySelector('#review-missing [data-review-cta="pin"]');
     const firstInput = document.querySelector(
       "#review-missing select, #review-missing input"
     );
     const firstCta = document.querySelector("#review-missing [data-review-cta]");
     const skip = document.getElementById("review-skip-btn");
-    const target = pin || firstInput || firstCta || skip;
+    const target = accept || pin || firstInput || firstCta || skip;
     if (target) target.focus();
   }
 
@@ -944,10 +1135,22 @@
   }
 
   function openReviewIfNeeded() {
-    const digest = computeReviewDigest();
-    if (!digest.shouldPrompt) return false;
+    wizardSkipped = {};
+    const remaining = wizardGaps();
+    if (!remaining.length) return false;
     openReviewModal();
     return true;
+  }
+
+  function skipWizardQuestion() {
+    const remaining = wizardGaps();
+    if (remaining[0]) wizardSkipped[remaining[0].id] = true;
+    if (!wizardGaps().length) {
+      closeReviewModal("skip");
+      return;
+    }
+    renderReviewModal();
+    requestAnimationFrame(focusReview);
   }
 
   function closeReviewModal(reason) {
@@ -1007,10 +1210,55 @@
     return true;
   }
 
+  function applyReviewFloors() {
+    const el = document.getElementById("review-in-floors");
+    if (!el || el.value === "") return false;
+    const n = num(el.value);
+    if (n == null) return false;
+    setField("exposure.floors_above_ground", n, "human");
+    fillForm();
+    persistIntakeLock();
+    finishReviewAction();
+    return true;
+  }
+
+  function applyReviewHeight() {
+    const el = document.getElementById("review-in-height");
+    if (!el || el.value === "") return false;
+    const n = num(el.value);
+    if (n == null) return false;
+    setField("exposure.total_height_m", n, "human");
+    fillForm();
+    persistIntakeLock();
+    finishReviewAction();
+    return true;
+  }
+
   function openPinFromReview() {
     reviewAwaitingPin = true;
     closeReviewModal("pin");
     window.MapModal.open();
+  }
+
+  function acceptGeocodeSuggestion() {
+    const sug = getGeocodeSuggestion();
+    if (!sug || sug.lat == null || sug.lon == null) {
+      openPinFromReview();
+      return;
+    }
+    if (!state.audit) state.audit = {};
+    state.audit.geocode_confirmed = true;
+    applyPin(sug.lat, sug.lon, "geocoded");
+  }
+
+  function handleReviewCta(action, formId) {
+    if (action === "pin") openPinFromReview();
+    else if (action === "accept-geo") acceptGeocodeSuggestion();
+    else if (action === "apply-tiv") applyReviewTiv();
+    else if (action === "apply-gfa") applyReviewGfa();
+    else if (action === "apply-floors") applyReviewFloors();
+    else if (action === "apply-height") applyReviewHeight();
+    else if (action === "adjust") openAdjustForField(formId);
   }
 
   function openAdjustForField(formId) {
@@ -1020,12 +1268,19 @@
 
   function ingestPayload(data) {
     if (!data) return window.emptyParse();
-    if (data.canonical) return data.canonical;
-    if (data.audit && data.coordinates) return data;
-    return fromExtractApi(data);
+    const copy = Object.assign({}, data);
+    delete copy.extracted_text;
+    if (copy.canonical) return copy.canonical;
+    if (copy.audit && copy.coordinates) return copy;
+    return fromExtractApi(copy);
   }
 
   function applyParse(payload) {
+    if (payload && typeof payload.extracted_text === "string" && payload.extracted_text.trim()) {
+      rawSlip = payload.extracted_text;
+      const slipEl = document.getElementById("slip");
+      if (slipEl) slipEl.value = payload.extracted_text;
+    }
     state = JSON.parse(JSON.stringify(ingestPayload(payload)));
     digested = true;
     intakeLocked = true;
@@ -1035,17 +1290,21 @@
     persistIntakeLock();
     const panel = document.getElementById("digest-panel");
     if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-    openReviewIfNeeded();
+    enrichGeocodeSuggestion().then(function () {
+      persistIntakeLock();
+      if (IS_REVIEW) renderPageMissing();
+      else openReviewIfNeeded();
+    });
   }
 
   function settleReviewAfterPin() {
-    const digest = computeReviewDigest();
-    if (!digest.shouldPrompt) {
-      reviewAwaitingPin = false;
+    reviewAwaitingPin = false;
+    const remaining = wizardGaps();
+    if (!remaining.length) {
       if (isReviewOpen()) closeReviewModal("filled");
       return;
     }
-    if (isReviewOpen()) renderReviewModal();
+    openReviewModal();
   }
 
   function applyPin(lat, lon, source) {
@@ -1062,9 +1321,14 @@
     persistIntakeLock();
     settleReviewAfterPin();
     if (rawSlip) {
+      const confirmed = Boolean(state.audit && state.audit.geocode_confirmed);
+      const suggestion = state.audit && state.audit.geocode_suggestion;
       postParseSlip(rawSlip, null, pendingOverrides).then(function (data) {
         state = JSON.parse(JSON.stringify(ingestPayload(data)));
         digested = true;
+        if (!state.audit) state.audit = {};
+        if (confirmed) state.audit.geocode_confirmed = true;
+        if (suggestion) state.audit.geocode_suggestion = suggestion;
         fillForm();
         persistIntakeLock();
         settleReviewAfterPin();
@@ -1221,7 +1485,10 @@
   }
 
   async function extract() {
-    rawSlip = document.getElementById("slip").value.trim();
+    const slipEl = document.getElementById("slip");
+    let pasted = slipEl ? slipEl.value.trim() : "";
+    if (/^\(file\)\s+.+\s+[—\-].*upload/i.test(pasted)) pasted = "";
+    rawSlip = pasted;
     const btn = document.getElementById("extract-btn");
     if (!pendingFile && !rawSlip) {
       toast("Paste a slip or drop a file first.", true);
@@ -1262,27 +1529,16 @@
     }
     const body = payload();
     try {
-      const res = await fetch("/api/model/run", {
+      await fetch("/api/model/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("engine offline");
-      toast("Handed off to catastrophe engine.");
-    } catch (_) {
-      showHandoff(body);
-    }
-  }
-
-  function showHandoff(body) {
+    } catch (_) {}
     try {
       sessionStorage.setItem("kenyaReHandoff", JSON.stringify(body));
     } catch (_) {}
-    const jsonEl = document.getElementById("handoff-json");
-    const modal = document.getElementById("handoff-modal");
-    if (jsonEl) jsonEl.textContent = JSON.stringify(body, null, 2);
-    if (modal) modal.classList.remove("hidden");
-    else window.location.href = "analysis.html";
+    window.location.href = "analysis.html";
   }
 
   function toast(msg, danger) {
@@ -1392,7 +1648,7 @@
       if (reviewAwaitingPin) {
         reviewAwaitingPin = false;
         if (IS_REVIEW) renderPageMissing();
-        else openReviewIfNeeded();
+        else if (wizardGaps().length) openReviewModal();
       }
     };
     listen("map-close", "click", window.MapModal.close);
@@ -1410,9 +1666,7 @@
     }
     const reviewSkip = document.getElementById("review-skip-btn");
     if (reviewSkip) {
-      reviewSkip.addEventListener("click", function () {
-        closeReviewModal("skip");
-      });
+      reviewSkip.addEventListener("click", skipWizardQuestion);
     }
     const reviewCard = document.getElementById("review-card");
     if (reviewCard) {
@@ -1420,10 +1674,7 @@
         const cta = e.target.closest("[data-review-cta]");
         if (!cta) return;
         const action = cta.getAttribute("data-review-cta");
-        if (action === "pin") openPinFromReview();
-        else if (action === "apply-tiv") applyReviewTiv();
-        else if (action === "apply-gfa") applyReviewGfa();
-        else if (action === "adjust") openAdjustForField(cta.getAttribute("data-form-id"));
+        handleReviewCta(action, cta.getAttribute("data-form-id"));
       });
       reviewCard.addEventListener("change", function (e) {
         if (e.target && e.target.id === "review-in-class") applyReviewClass();
@@ -1436,6 +1687,12 @@
         } else if (e.target && e.target.id === "review-in-gfa") {
           e.preventDefault();
           applyReviewGfa();
+        } else if (e.target && e.target.id === "review-in-floors") {
+          e.preventDefault();
+          applyReviewFloors();
+        } else if (e.target && e.target.id === "review-in-height") {
+          e.preventDefault();
+          applyReviewHeight();
         }
       });
     }
@@ -1467,10 +1724,7 @@
         const cta = e.target.closest("[data-review-cta]");
         if (!cta) return;
         const action = cta.getAttribute("data-review-cta");
-        if (action === "pin") openPinFromReview();
-        else if (action === "apply-tiv") applyReviewTiv();
-        else if (action === "apply-gfa") applyReviewGfa();
-        else if (action === "adjust") openAdjustForField(cta.getAttribute("data-form-id"));
+        handleReviewCta(action, cta.getAttribute("data-form-id"));
       });
       pageMissing.addEventListener("change", function (e) {
         if (e.target && e.target.id === "review-in-class") applyReviewClass();
@@ -1483,6 +1737,12 @@
         } else if (e.target && e.target.id === "review-in-gfa") {
           e.preventDefault();
           applyReviewGfa();
+        } else if (e.target && e.target.id === "review-in-floors") {
+          e.preventDefault();
+          applyReviewFloors();
+        } else if (e.target && e.target.id === "review-in-height") {
+          e.preventDefault();
+          applyReviewHeight();
         }
       });
     }
@@ -1509,12 +1769,6 @@
     }
     const runBtn = document.getElementById("run-btn");
     if (runBtn) runBtn.addEventListener("click", runModel);
-    const handoffClose = document.getElementById("handoff-close");
-    if (handoffClose) {
-      handoffClose.addEventListener("click", function () {
-        document.getElementById("handoff-modal").classList.add("hidden");
-      });
-    }
     const statusWrap = document.getElementById("status-wrap");
     if (statusWrap) {
       statusWrap.addEventListener("click", function () {
@@ -1552,7 +1806,7 @@
   function readFile(f) {
     pendingFile = f;
     const name = (f.name || "").toLowerCase();
-    if (/\.(pdf|docx|xlsx|xls)$/.test(name)) {
+    if (/\.(pdf|docx|xlsx|xls|png|jpe?g|webp)$/.test(name)) {
       document.getElementById("slip").value =
         "(file) " + f.name + " — will upload to the extraction service";
       toast("Uploading " + f.name + "…");

@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kenya Re · Intake</title>
-    <link rel="icon" type="image/svg+xml" href="brand/favicon.svg" />
+    <link rel="icon" type="image/png" href="brand/favicon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,7 +23,7 @@
       <aside class="sidebar">
         <a class="brand-link" href="index.html" title="Kenya Re">
           <span class="brand-tile">
-            <img class="brand-mark" src="brand/kenya-re-mark.svg" alt="Kenya Re" />
+            <img class="brand-mark" src="brand/kenya-re-logo.png" alt="Kenya Re" />
           </span>
         </a>
         <nav class="sidebar-nav">
@@ -50,14 +50,14 @@
       </aside>
 
       <div class="flex flex-col min-w-0 min-h-screen">
-        <header class="flex items-center justify-between px-8 py-5">
-          <div>
-            <p class="text-xs text-[var(--muted)]">Nairobi pluvial · facultative</p>
-            <h1 class="text-[28px] leading-none font-semibold tracking-tight mt-1">Intake</h1>
+        <header class="page-head">
+          <div class="page-head-main">
+            <p class="page-kicker">Nairobi flood · facultative</p>
+            <h1 class="display-title">Intake</h1>
           </div>
-          <div class="flex items-center gap-3">
-            <span id="property_name" class="text-sm text-[var(--muted)]">No risk loaded</span>
-            <span class="mono text-xs text-[var(--muted)]" id="reference"></span>
+          <div class="page-head-meta">
+            <span id="property_name" class="risk-chip">No risk loaded</span>
+            <span class="mono page-head-ref" id="reference"></span>
             <p id="toast" class="hidden text-xs"></p>
             <button id="new-slip-btn" type="button" class="hidden btn-ghost px-4 py-2 text-sm">
               New slip
@@ -65,38 +65,38 @@
           </div>
         </header>
 
-        <div class="workspace grid grid-cols-1 flex-1 px-8 pb-8 gap-5">
-          <section id="doc-col">
-            <div id="doc-card" class="card p-5 h-full flex flex-col gap-3">
-              <div class="flex items-center justify-between">
-                <h2 class="text-sm font-medium">Document</h2>
-                <span class="text-xs text-[var(--muted)]">Paste or drop slip · txt pdf docx json</span>
+        <div class="workspace grid grid-cols-1 flex-1 px-8 py-6 gap-5">
+          <section id="doc-col" class="blotter">
+            <div id="doc-card" class="slip-sheet">
+              <div class="slip-rule"></div>
+              <header class="slip-letterhead">
+                <span>Placement memorandum</span>
+                <span>txt · pdf · docx · xlsx</span>
+              </header>
+              <div id="dropzone" class="slip-drop">
+                <p class="slip-drop-title">Drop the broker slip</p>
+                <p class="slip-drop-sub">or click — the paper is the file picker</p>
+                <input id="file" type="file" accept=".txt,.md,.json,.pdf,.docx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp" class="hidden" />
               </div>
-              <div
-                id="dropzone"
-                class="border border-dashed border-[var(--border)] rounded-2xl px-4 py-3 text-sm text-[var(--muted)] cursor-pointer hover:border-[var(--accent)]"
+              <details class="slip-paste">
+                <summary>Paste text instead</summary>
+                <textarea
+                  id="slip"
+                  class="slip-textarea mono"
+                  placeholder="Paste the placement memorandum…"
+                ></textarea>
+              </details>
+              <button
+                id="extract-btn"
+                type="button"
+                class="btn-extract inline-flex items-center justify-center gap-2"
               >
-                Drop a broker slip here, or click to choose a file
-                <input id="file" type="file" accept=".txt,.md,.json,.pdf,.docx,.csv,.xlsx,.xls" class="hidden" />
-              </div>
-              <textarea
-                id="slip"
-                class="flex-1 min-h-[180px] w-full p-3 text-sm leading-relaxed mono"
-                placeholder="Paste the placement memorandum…"
-              ></textarea>
-              <div class="flex flex-wrap gap-2">
-                <button
-                  id="extract-btn"
-                  type="button"
-                  class="btn-primary px-4 py-2 text-sm inline-flex items-center gap-2"
-                >
-                  <span
-                    id="extract-spinner"
-                    class="hidden h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin"
-                  ></span>
-                  Extract risk profile
-                </button>
-              </div>
+                <span
+                  id="extract-spinner"
+                  class="hidden h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin"
+                ></span>
+                Extract
+              </button>
             </div>
           </section>
 
@@ -173,7 +173,7 @@
                 </div>
               </div>
 
-              <div class="grid lg:grid-cols-[1.25fr_0.75fr] gap-5">
+              <div class="grid lg:grid-cols-[1.25fr_0.75fr] gap-5 items-stretch">
                 <div class="card p-5">
                   <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-medium">Extracted profile</h2>
@@ -197,7 +197,7 @@
                     <div class="fact fact-span"><span>Vital considerations</span><strong id="fact-vitals">—</strong></div>
                   </div>
                 </div>
-                <div class="card p-5">
+                <div class="card p-5 flex flex-col min-h-[520px]">
                   <h2 class="text-sm font-medium mb-3">Floor stack</h2>
                   <div id="floor-stack" class="floor-stack"></div>
                 </div>
@@ -207,7 +207,7 @@
           </section>
         </div>
 
-        <footer class="flex flex-wrap items-center justify-between gap-3 px-8 py-4">
+        <footer class="workspace-footer flex flex-wrap items-center justify-between gap-3 px-8 py-3">
           <p id="intake-hint" class="text-sm text-[var(--muted)]">
             Extract a slip to digest the risk, then review before you run.
           </p>
@@ -233,33 +233,21 @@
     >
       <div id="review-card" class="card w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col" tabindex="-1">
         <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h3 id="review-title" class="text-sm font-medium">These were not found on the slip</h3>
+          <div>
+            <p id="review-progress" class="text-xs text-[var(--muted)]"></p>
+            <h3 id="review-title" class="text-lg font-medium mt-1">A field was not found</h3>
+          </div>
           <button id="review-close" type="button" class="text-sm text-[var(--muted)]">Close</button>
         </div>
         <div class="p-5 overflow-auto flex-1 space-y-3">
-          <p id="review-lead" class="text-sm text-[var(--muted)]">
-            Pin GPS here if it was not found. Full adjust and Run live on Review.
-          </p>
+          <p id="review-lead" class="text-sm text-[var(--muted)]"></p>
           <ul id="review-missing" class="review-list"></ul>
         </div>
-        <div class="px-5 py-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
+        <div class="px-5 py-4 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-2">
           <button id="review-skip-btn" type="button" class="btn-ghost px-4 py-2 text-sm">
-            Skip for now
+            Skip this one
           </button>
-          <a href="review.html" class="btn-primary px-4 py-2 text-sm">Review &amp; complete</a>
-        </div>
-      </div>
-    </div>
-
-    <div id="handoff-modal" class="hidden fixed inset-0 modal-scrim z-50 flex items-center justify-center p-4">
-      <div class="card w-full max-w-2xl overflow-hidden">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h3 class="text-sm font-medium">Handoff JSON · engine offline</h3>
-          <button id="handoff-close" type="button" class="text-sm text-[var(--muted)]">Close</button>
-        </div>
-        <pre id="handoff-json" class="p-5 text-xs mono overflow-auto max-h-[70vh] text-[var(--ink)]"></pre>
-        <div class="px-5 pb-5">
-          <a href="analysis.html" class="btn-primary inline-block px-4 py-2 text-sm">Open analysis overview</a>
+          <span class="text-xs text-[var(--muted)]">One question at a time</span>
         </div>
       </div>
     </div>
@@ -276,9 +264,15 @@
         </div>
         <div id="geocode-results" class="max-h-28 overflow-auto text-sm"></div>
         <div id="map"></div>
-        <p class="px-5 py-3 text-xs text-[var(--muted)]">
-          Click the map to set coordinates as human. Rectangle is the Copernicus clip.
-        </p>
+        <div class="px-5 py-3 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
+          <p id="map-pin-hint" class="text-xs text-[var(--muted)]">
+            Click the map to place a pin, then press Okay to save.
+          </p>
+          <div class="flex gap-2">
+            <button id="map-cancel" type="button" class="btn-ghost px-4 py-2 text-sm">Cancel</button>
+            <button id="map-ok" type="button" class="btn-primary px-4 py-2 text-sm" disabled>Okay</button>
+          </div>
+        </div>
       </div>
     </div>
 

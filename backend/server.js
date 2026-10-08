@@ -9,14 +9,23 @@ const multer = require("multer");
 const { processBrokerSlip } = require("./src/intake/orchestrator");
 const { geocodeAddress } = require("./src/services/geocoder");
 const { validateNairobiCoordinates } = require("./src/services/bounds");
-const { loadDocument } = require("./src/loaders/document.loader");
+const { loadDocument, supportedExtensions } = require("./src/loaders/document.loader");
 const extractionRoutes = require("./src/routes/extraction.routes");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const frontendDir = path.join(__dirname, "..", "frontend", "public");
 const maxBytes = Number(process.env.MAX_UPLOAD_BYTES || 10 * 1024 * 1024);
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: maxBytes },
+  fileFilter: (_req, file, callback) => {
+    if (!supportedExtensions.has(path.extname(file.originalname || "").toLowerCase())) {
+      return callback(new Error("Unsupported file format."));
+    }
+    return callback(null, true);
+  }
+});
 
 app.disable("x-powered-by");
 app.use((req, res, next) => {
@@ -52,18 +61,27 @@ function parseOverrides(value) {
   }
 }
 
+function isPlaceholderSlip(text) {
+  return /^\(file\)\s+.+\s+[—\-].*upload/i.test(String(text || "").trim());
+}
+
 async function parseSlipHandler(req, res) {
   try {
-    let text = req.body && typeof req.body.text === "string" ? req.body.text : "";
+    const bodyText = req.body && typeof req.body.text === "string" ? req.body.text : "";
+    let text = isPlaceholderSlip(bodyText) ? "" : bodyText;
+    let images = [];
     if (req.file) {
-      text = await loadDocument(req.file);
+      const loaded = await loadDocument(req.file);
+      const fileText = loaded && typeof loaded === "object" ? loaded.text || "" : String(loaded || "");
+      images = loaded && loaded.images ? loaded.images : [];
+      if (fileText && fileText.trim()) text = fileText;
     }
-    if (!text || !String(text).trim()) {
+    if ((!text || !String(text).trim()) && !images.length) {
       return res.status(400).json({ error: 'Field "text" or file is required.' });
     }
     const overrides = parseOverrides(req.body && req.body.overrides);
-    const canonical = await processBrokerSlip(text, { overrides });
-    return res.json(canonical);
+    const canonical = await processBrokerSlip(text || "", { overrides, images });
+    return res.json({ ...canonical, extracted_text: text || "" });
   } catch (err) {
     console.error("Error parsing slip:", err);
     return res.status(500).json({

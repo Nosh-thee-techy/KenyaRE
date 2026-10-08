@@ -11,6 +11,11 @@ const housingClasses = [
 const exposureSchema = z.object({
   property_name: z.string().nullable(),
   reference: z.string().nullable(),
+  address: z.string().nullable().optional(),
+  occupancy: z.string().nullable().optional(),
+  class_of_business: z.string().nullable().optional(),
+  coverage_type: z.string().nullable().optional(),
+  flood_cover_requested: z.boolean().nullable().optional(),
   coordinates: z.object({
     lat: nullableNumber,
     lon: nullableNumber,
@@ -23,6 +28,7 @@ const exposureSchema = z.object({
     floors_above_ground: nullableNumber,
     total_height_m: nullableNumber,
     basement_floors: nullableNumber,
+    first_floor_height_m: nullableNumber.optional(),
     critical_plant_in_basement: z.boolean().nullable(),
     tiv_kes: nullableNumber,
     cost_per_m2_kes: nullableNumber
@@ -30,13 +36,19 @@ const exposureSchema = z.object({
   financial_terms: z.object({
     deductible_pct: nullableNumber,
     deductible_min_kes: nullableNumber,
+    policy_limit_kes: nullableNumber.optional(),
     vital_considerations: z.array(z.string())
   })
-}).strict();
+});
 
 const emptyExtraction = {
   property_name: null,
   reference: null,
+  address: null,
+  occupancy: null,
+  class_of_business: null,
+  coverage_type: null,
+  flood_cover_requested: null,
   coordinates: { lat: null, lon: null, elevation_m: null, source: null },
   exposure: {
     housing_class: null,
@@ -44,6 +56,7 @@ const emptyExtraction = {
     floors_above_ground: null,
     total_height_m: null,
     basement_floors: null,
+    first_floor_height_m: null,
     critical_plant_in_basement: null,
     tiv_kes: null,
     cost_per_m2_kes: null
@@ -51,6 +64,7 @@ const emptyExtraction = {
   financial_terms: {
     deductible_pct: null,
     deductible_min_kes: null,
+    policy_limit_kes: null,
     vital_considerations: []
   }
 };

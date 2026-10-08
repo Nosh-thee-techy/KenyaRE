@@ -19,17 +19,21 @@ async function processBrokerSlip(input, options = {}) {
   let rawData = {};
 
   let geminiNote = null;
+  const images = options.images || [];
   if (typeof input === 'string') {
     rawData = extractFromSlip(input);
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && !regexLooksComplete(rawData)) {
       try {
-        const gemini = await extractExposure(input, apiKey);
+        const gemini = await extractExposure(input, apiKey, { images });
         rawData = mergeRaw(rawData, flattenGemini(gemini));
       } catch (err) {
+        console.error('Gemini extraction failed:', err && err.message ? err.message : err);
         const msg = err && err.message ? String(err.message).slice(0, 180) : 'error';
         geminiNote = `Gemini extraction skipped (${msg}).`;
       }
+    } else if (!apiKey && !regexLooksComplete(rawData) && images.length) {
+      geminiNote = 'Gemini extraction skipped (no API key). Image/scan text could not be read.';
     }
   } else if (typeof input === 'object' && input !== null) {
     rawData = { ...input };
@@ -45,23 +49,36 @@ async function processBrokerSlip(input, options = {}) {
     }
   }
 
-  // Fallback Geocoding: If coordinates are missing, attempt Nominatim lookup
-  let geocodedCoords = null;
-  if ((rawData.lat == null || rawData.lon == null) && rawData.address) {
-    const geoResult = await geocodeAddress(rawData.address);
-    if (geoResult.success && geoResult.candidates.length > 0) {
-      // Pick the top valid candidate within Nairobi
-      const best = geoResult.candidates.find(c => c.is_inside_nairobi) || geoResult.candidates[0];
-      if (best) {
-        geocodedCoords = { lat: best.lat, lon: best.lon };
+  // Look up an address when GPS is missing — do not auto-apply; underwriter confirms.
+  let geocodeSuggestion = options.geocodeSuggestion || null;
+  if (
+    !geocodeSuggestion &&
+    (rawData.lat == null || rawData.lon == null) &&
+    !options.humanCoords
+  ) {
+    const query = rawData.address || rawData.property_name;
+    if (query) {
+      const geoResult = await geocodeAddress(query);
+      if (geoResult.success && geoResult.candidates.length > 0) {
+        const best =
+          geoResult.candidates.find((c) => c.is_inside_nairobi) ||
+          geoResult.candidates[0];
+        if (best) {
+          geocodeSuggestion = {
+            query: String(query),
+            label: best.display_name,
+            lat: best.lat,
+            lon: best.lon,
+            is_inside_nairobi: Boolean(best.is_inside_nairobi)
+          };
+        }
       }
     }
   }
 
-  // Apply the deterministic fallback engine
   const canonical = applyFallbacks(rawData, {
     ...options,
-    geocodedCoords: geocodedCoords || options.geocodedCoords
+    geocodeSuggestion
   });
 
   if (geminiNote) {

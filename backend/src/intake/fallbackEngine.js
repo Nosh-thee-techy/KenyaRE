@@ -32,10 +32,15 @@ function applyFallbacks(raw = {}, options = {}) {
     lat = parseFloat(options.humanCoords.lat);
     lon = parseFloat(options.humanCoords.lon);
     gpsSource = 'human';
-  } else if ((lat == null || lon == null) && options.geocodedCoords) {
-    lat = parseFloat(options.geocodedCoords.lat);
-    lon = parseFloat(options.geocodedCoords.lon);
-    gpsSource = 'geocoded';
+  }
+
+  if (raw.address) {
+    record.audit.extracted_address = String(raw.address);
+  }
+
+  if (options.geocodeSuggestion) {
+    record.audit.geocode_suggestion = options.geocodeSuggestion;
+    warnings.push("GPS was not on the slip; looked up the address. Underwriter must confirm.");
   }
 
   if (lat != null && lon != null) {
@@ -230,6 +235,9 @@ function applyFallbacks(raw = {}, options = {}) {
   record.audit.is_blocked = blockReasons.length > 0;
   record.audit.block_reasons = blockReasons;
   record.audit.warnings = warnings;
+  if (options.geocodeSuggestion) {
+    record.audit.geocode_suggestion = options.geocodeSuggestion;
+  }
 
   return record;
 }
