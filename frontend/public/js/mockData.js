@@ -6,7 +6,8 @@ window.NAIROBI_RASTER = {
   latMin: -1.45,
   latMax: -1.1,
   lonMin: 36.6,
-  lonMax: 37.0,
+  lonMax: 37.05,
+  rasterLonMax: 37.0,
   center: [-1.286, 36.82],
 };
 

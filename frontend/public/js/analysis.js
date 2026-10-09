@@ -250,43 +250,7 @@
           { return_period: 10, aep: 0.1, damage_ratio: 0.18, ground_up_loss_kes: 16000000, net_loss_kes: 11000000 },
           { return_period: 50, aep: 0.02, damage_ratio: 0.32, ground_up_loss_kes: 28000000, net_loss_kes: 23000000 },
           { return_period: 100, aep: 0.01, damage_ratio: 0.44, ground_up_loss_kes: 38000000, net_loss_kes: 33000000 }
-        ],
-        ai_metrics: {
-          aal_ground_up_kes: 14200000,
-          aal_net_kes: 10800000,
-          pml_100y_kes: 41000000
-        },
-        ai_ep_curve: [
-          { return_period: 2, aep: 0.5, damage_ratio: 0.1, ground_up_loss_kes: 5200000, net_loss_kes: 200000 },
-          { return_period: 5, aep: 0.2, damage_ratio: 0.16, ground_up_loss_kes: 11800000, net_loss_kes: 6800000 },
-          { return_period: 10, aep: 0.1, damage_ratio: 0.24, ground_up_loss_kes: 22000000, net_loss_kes: 17000000 },
-          { return_period: 50, aep: 0.02, damage_ratio: 0.38, ground_up_loss_kes: 34000000, net_loss_kes: 29000000 },
-          { return_period: 100, aep: 0.01, damage_ratio: 0.5, ground_up_loss_kes: 46000000, net_loss_kes: 41000000 }
-        ],
-        ai_upgrade: {
-          applied: true,
-          reason: "blinded_drainage_corridor",
-          radius_km: 2,
-          surcharge: { type: "susceptibility_add", value: 0.28 },
-          classification_source: "kit_labels",
-          blinded_count: 4,
-          hit_count: 6,
-          nearest_blinded: { name: "Westlands", distance_km: 0.4, class: "blinded" },
-          drainage_evidence: true,
-          briefing:
-            "Sample layout. TIFF proxy misses Westlands (drainage overload). AI surcharge +0.28 susceptibility changes AAL. News is not a gauge.",
-          sources: [
-            { title: "The Star, 15 March 2026", what: "37 flood-prone neighbourhoods", url: "https://www.the-star.co.ke" },
-            { title: "Kenya Climate Directory, 2024", what: "Drainage capacity diagnostic", url: "https://kenyaclimatedirectory.org" },
-            { title: "JRC / Huizinga", what: "Depth–damage shape", url: "https://publications.jrc.ec.europa.eu" }
-          ],
-          assumptions: [
-            "Sample numbers — not a live run.",
-            "Upgrade radius is 2 km from a blinded hotspot.",
-            "susceptibility_ai = min(1, base + 0.28).",
-            "News is not a street gauge."
-          ]
-        }
+        ]
       }
     };
   }
@@ -303,8 +267,7 @@
     return Boolean(
       (res.ep_curve && res.ep_curve.length) ||
         (res.scenarios && res.scenarios.length) ||
-        res.metrics ||
-        res.ai_upgrade
+        res.metrics
     );
   }
 
@@ -463,13 +426,7 @@
     if (ctx.pml250Ratio != null && ctx.pml250Ratio > 0.2) holds.push("PML 250y exceeds 20% of TIV");
     if (ctx.limit == null) holds.push("Policy limit not found");
 
-    if (ctx.aiApplied) {
-      conditions.push(
-        "AI drainage upgrade on a blinded hotspot — " +
-          (ctx.aiHotspot || "named corridor") +
-          ". Hazard TIFF is unchanged."
-      );
-    } else if (ctx.hotspotName) {
+    if (ctx.hotspotName) {
       conditions.push("Named corridor on file — check Finance for whether the TIFF was blinded");
     }
     if (ctx.dedSrc === "class_default" || ctx.dedMinSrc === "class_default") {
@@ -736,92 +693,19 @@
     }
   }
 
-  function renderAiFinance(ctx) {
-    const panel = document.getElementById("ai-loss-panel");
-    if (panel) panel.setAttribute("data-applied", ctx.aiApplied ? "true" : "false");
-    const delta =
-      ctx.aiAalNet != null && ctx.aalNet != null ? ctx.aiAalNet - ctx.aalNet : ctx.aiAalNet != null ? ctx.aiAalNet : null;
-    setText("fin-base-aal", fmtKes(ctx.aalNet));
-    setText("fin-ai-aal", fmtKes(ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet));
-    setText(
-      "fin-ai-delta",
-      delta == null ? "not found" : (delta > 0 ? "+" : "") + fmtKes(delta)
-    );
-    setText("fin-ai-pml", fmtKes(ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100));
-    setText(
-      "ai-loss-lede",
-      ctx.aiApplied
-        ? "AI changed the loss. Hazard TIFF is untouched."
-        : "AI checked the blinded drainage corridors and left the loss equal to base."
-    );
-    setText(
-      "ai-hotspot-note",
-      ctx.aiHotspot
-        ? (ctx.aiApplied ? "Upgrade fired on " : "Nearest blinded corridor: ") +
-            ctx.aiHotspot +
-            (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "")
-        : "No blinded hotspot within the 2 km gate."
-    );
-    setText("ai-briefing", ctx.aiBriefing || "not found");
-    const tbody = document.querySelector("#ai-sources tbody");
-    if (tbody) {
-      if (!ctx.aiSources.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
-      } else {
-        tbody.innerHTML = ctx.aiSources
-          .map(function (src) {
-            const url = src.url || "";
-            const link = url
-              ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(url) + "</a>"
-              : "not found";
-            return (
-              "<tr><td>" +
-              escapeHtml(src.title || src.id || "Source") +
-              "</td><td>" +
-              escapeHtml(src.what || "") +
-              "</td><td>" +
-              link +
-              "</td></tr>"
-            );
-          })
-          .join("");
-      }
-    }
-    const list = document.getElementById("ai-assumptions");
-    if (list) {
-      if (!ctx.aiAssumptions.length) {
-        list.innerHTML = "<li>not found</li>";
-      } else {
-        list.innerHTML = ctx.aiAssumptions
-          .map(function (line) {
-            return "<li>" + escapeHtml(line) + "</li>";
-          })
-          .join("");
-      }
-    }
-  }
-
-  function aiNetAt(ctx, rp) {
-    const row = (ctx.aiCurve || []).filter(function (p) {
-      return p.return_period === rp;
-    })[0];
-    return row ? row.net_loss_kes : null;
-  }
-
   function renderResults(ctx) {
-    renderAiFinance(ctx);
     setText("res-tiv", fmtKes(ctx.tiv));
     setText("res-tiv-src", ctx.tivSrc ? "Source: " + ctx.tivSrc + ". Facultative slip, not the synthetic book." : "TIV source not found.");
-    setText("res-class", ctx.classLabel || "not found");
+    setText("res-aal", fmtKes(ctx.aalNet));
+    setText("res-pml", fmtKes(ctx.pml100));
     const tbody = document.querySelector("#res-loss-table tbody");
     if (tbody) {
       const rows = ctx.curve || [];
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" class="nf">not found</td></tr>';
       } else {
         tbody.innerHTML = rows
           .map(function (pt) {
-            const ai = aiNetAt(ctx, pt.return_period);
             return (
               "<tr><td>" +
               stormLabel(pt) +
@@ -829,8 +713,6 @@
               pt.return_period +
               "y</td><td>" +
               fmtKes(pt.net_loss_kes) +
-              "</td><td>" +
-              fmtKes(ai != null ? ai : pt.net_loss_kes) +
               "</td></tr>"
             );
           })
@@ -863,39 +745,10 @@
       "TVaR 100y: " + fmtKesFull(tvar.value),
       tvar.note || "",
       "",
-      "Base vs AI-upgraded AAL: " +
-        fmtKesFull(ctx.aalNet) +
-        " → " +
-        fmtKesFull(ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet),
-      "AI PML 100y: " + fmtKesFull(ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100),
-      "Hotspot: " +
-        (ctx.aiHotspot
-          ? ctx.aiHotspot + (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "")
-          : "none in the 2 km gate"),
-      "",
       "Loss at stated return periods"
     ];
     (ctx.curve || []).forEach(function (pt) {
-      const ai = aiNetAt(ctx, pt.return_period);
-      lines.push(
-        pt.return_period +
-          "y base net " +
-          fmtKesFull(pt.net_loss_kes) +
-          " · AI net " +
-          fmtKesFull(ai != null ? ai : pt.net_loss_kes)
-      );
-    });
-    lines.push("");
-    lines.push(ctx.aiBriefing || "");
-    lines.push("");
-    lines.push("Sources");
-    (ctx.aiSources || []).forEach(function (src) {
-      lines.push("- " + (src.title || src.id) + " — " + (src.what || "") + " — " + (src.url || ""));
-    });
-    lines.push("");
-    lines.push("Assumptions");
-    (ctx.aiAssumptions || []).forEach(function (line) {
-      lines.push("- " + line);
+      lines.push(pt.return_period + "y net " + fmtKesFull(pt.net_loss_kes));
     });
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a");
@@ -904,7 +757,6 @@
     a.click();
     URL.revokeObjectURL(a.href);
   }
-
   function bindResultsDesk() {
     const dl = document.getElementById("results-download");
     if (dl && !dl.dataset.bound) {
@@ -1208,7 +1060,7 @@
     setText(
       "fin-out-note",
       ctx.hasModel
-        ? "TIFF base only. Net of deductible and limit. AI comparison is on Results."
+        ? "TIFF base only. Net of deductible and limit. Five stated points, not a continuous tail."
         : "Waiting on model output."
     );
     setText("fin-aal", fmtKes(ctx.aalNet));
@@ -1256,7 +1108,7 @@
     return nice * exp;
   }
 
-  function drawEpCurve(canvas, curve, aiCurve) {
+  function drawEpCurve(canvas, curve) {
     const sized = sizeCanvas(canvas);
     const ctx = sized.ctx;
     const w = sized.w;
@@ -1272,11 +1124,10 @@
     });
     const minRp = Math.min.apply(null, rps);
     const maxRp = Math.max.apply(null, rps);
-    const series = curve.concat(Array.isArray(aiCurve) ? aiCurve : []);
     const maxLoss = niceMax(
       Math.max.apply(
         null,
-        series.map(function (p) {
+        curve.map(function (p) {
           return Math.max(p.ground_up_loss_kes || 0, p.net_loss_kes || 0);
         })
       )
@@ -1333,36 +1184,13 @@
 
     strokeSeries("ground_up_loss_kes", "#00274c", [5, 4]);
     strokeSeries("net_loss_kes", "#d11242");
-    if (aiCurve && aiCurve.length) {
-      ctx.beginPath();
-      ctx.setLineDash([2, 4]);
-      ctx.strokeStyle = "#7c5cbf";
-      ctx.lineWidth = 2.2;
-      aiCurve.forEach(function (p, i) {
-        const x = xOf(p.return_period);
-        const y = yOf(p.net_loss_kes || 0);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.setLineDash([]);
-      aiCurve.forEach(function (p) {
-        const x = xOf(p.return_period);
-        const y = yOf(p.net_loss_kes || 0);
-        ctx.fillStyle = "#7c5cbf";
-        ctx.beginPath();
-        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
 
     curve.forEach(function (p) {
       const x = xOf(p.return_period);
       const yNet = yOf(p.net_loss_kes || 0);
-      const yGu = yOf(p.ground_up_loss_kes || 0);
       ctx.fillStyle = "#00274c";
       ctx.beginPath();
-      ctx.arc(x, yGu, 3.2, 0, Math.PI * 2);
+      ctx.arc(x, yOf(p.ground_up_loss_kes || 0), 3.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#d11242";
       ctx.beginPath();
@@ -1502,15 +1330,10 @@
       (exp.audit && exp.audit.geocode_suggestion && exp.audit.geocode_suggestion.label) ||
       null;
 
-    const ai = res.ai_upgrade || {};
-    const aiMetrics = res.ai_metrics || {};
-    const aiCurve = normalizeCurve(res.ai_ep_curve || res.aiEpCurve);
     const aalNet = num(metrics.aal_net_kes);
     const aalGu = num(metrics.aal_ground_up_kes);
     const pml100 = num(metrics.pml_100y_kes);
     const pml250 = num(metrics.pml_250y_kes);
-    const aiAalNet = num(aiMetrics.aal_net_kes);
-    const aiPml100 = num(aiMetrics.pml_100y_kes);
     const tivN = num(tiv.value);
     const limitN = num(limit.value);
     const rol = num(metrics.rate_on_line_pct);
@@ -1552,16 +1375,12 @@
       aalGu: aalGu,
       pml100: pml100,
       pml250: pml250,
-      aiApplied: Boolean(ai.applied),
       aiReason: ai.reason || null,
       aiHotspot: (ai.nearest_blinded && ai.nearest_blinded.name) || null,
       aiDistanceKm: ai.nearest_blinded && ai.nearest_blinded.distance_km,
       aiBriefing: ai.briefing || null,
       aiSources: Array.isArray(ai.sources) ? ai.sources : [],
       aiAssumptions: Array.isArray(ai.assumptions) ? ai.assumptions : [],
-      aiAalNet: aiAalNet,
-      aiPml100: aiPml100,
-      aiCurve: aiCurve,
       rol: rol,
       tvar100: constructedTvar(curve, 0.02),
       pml250Ratio: tivN && pml250 != null ? pml250 / tivN : null,
@@ -1577,7 +1396,6 @@
   }
 
   let lastCurve = [];
-  let lastAiCurve = [];
   let lastVuln = { classKey: null, rows: [] };
   let lastCtx = null;
 
@@ -1642,15 +1460,12 @@
     return !host || !host.classList.contains("hidden");
   }
 
-  function drawAll(curve, aiCurve) {
+  function drawAll(curve) {
     if (curve) lastCurve = curve;
-    if (aiCurve) lastAiCurve = aiCurve;
     const ep = document.getElementById("ep-chart");
     const dd = document.getElementById("dd-chart");
     const fold = document.getElementById("dd-fold");
-    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve, null);
-    const resEp = document.getElementById("res-ep-chart");
-    if (resEp && stepIsVisible(resEp)) drawEpCurve(resEp, lastCurve, lastAiCurve);
+    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve);
     if (dd && stepIsVisible(dd) && (!fold || fold.open)) drawDepthDamage(dd);
   }
 
@@ -1719,7 +1534,6 @@
     renderResults(ctx);
     bindResultsDesk();
     lastCurve = ctx.curve || [];
-    lastAiCurve = ctx.aiCurve || [];
     if (!location.hash || location.hash === "#") {
       history.replaceState(null, "", location.pathname + location.search + "#hazard");
     }

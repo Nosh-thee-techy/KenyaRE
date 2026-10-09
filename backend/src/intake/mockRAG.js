@@ -128,7 +128,7 @@ function extractTiv(text) {
 
 function extractGps(text) {
   const labeled = text.match(
-    /GPS\s*(?:COORDINATES?)?\s*[:;]?\s+([+\-]?[0-9.]+)[°\s]*([NS])?\s*[,;/]\s*([+\-]?[0-9.]+)[°\s]*([EW])?/i
+    /GPS\s*(?:COORDINATES?)?\s*[:;]?\s*([+\-]?[0-9.]+)[°]?\s*([NS])?\s*[,;/\s]+\s*([+\-]?[0-9.]+)[°]?\s*([EW])?/i
   );
   if (labeled) {
     const lat = applyHemisphere(labeled[1], labeled[2]);
@@ -136,8 +136,20 @@ function extractGps(text) {
     if (lat != null && lon != null) return { lat, lon };
   }
 
+  const splitLat = text.match(
+    /(?:^|\n)\s*(?:lat(?:itude)?)\.?\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([NS])?/im
+  );
+  const splitLon = text.match(
+    /(?:^|\n)\s*(?:lon(?:g(?:itude)?)?)\.?\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([EW])?/im
+  );
+  if (splitLat && splitLon) {
+    const lat = applyHemisphere(splitLat[1], splitLat[2]);
+    const lon = applyHemisphere(splitLon[1], splitLon[2]);
+    if (lat != null && lon != null) return { lat, lon };
+  }
+
   const latLon = text.match(
-    /(?:lat(?:itude)?)\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([NS])?[,;\s]+(?:lon(?:g(?:itude)?)?)\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([EW])?/i
+    /(?:lat(?:itude)?)\.?\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([NS])?[,;\s]+(?:lon(?:g(?:itude)?)?)\.?\s*[:\s]+([+\-]?[0-9.]+)[°]?\s*([EW])?/i
   );
   if (latLon) {
     const lat = applyHemisphere(latLon[1], latLon[2]);

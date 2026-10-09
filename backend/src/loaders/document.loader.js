@@ -3,6 +3,7 @@ const { parse } = require("csv-parse/sync");
 const mammoth = require("mammoth");
 const XLSX = require("xlsx");
 const { objectToText, normalizeText } = require("../utils/normalization");
+const { extractGps } = require("../intake/mockRAG");
 
 const supportedExtensions = new Set([
   ".json",
@@ -66,7 +67,9 @@ async function loadPdf(buffer) {
   try {
     const result = await withTimeout(parser.getText(), 25000, "PDF text extraction timed out");
     const text = normalizeText(result && result.text ? result.text : "");
-    if (text.length >= 40) {
+    // Screenshots when printed GPS is missing — table/image coords never
+    // reach Gemini if we bail out just because body text is 40+ chars.
+    if (extractGps(text)) {
       return { text, images: [] };
     }
     let images = [];

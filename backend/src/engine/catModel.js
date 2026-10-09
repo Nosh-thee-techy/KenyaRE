@@ -304,8 +304,7 @@ async function runCatModelAsync(exposureRecord) {
     metrics: summary.metrics,
     ep_curve: scenarios
   };
-  const { attachAiUpgrade } = require("./aiUpgrade");
-  return attachAiUpgrade(result, { ...priceInputs, lat, lon }, { sampleSusceptibility, priceScenarios, summarizeMetrics });
+  return result;
 }
 
 function runCatModel(exposureRecord) {

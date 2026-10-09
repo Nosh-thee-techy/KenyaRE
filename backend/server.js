@@ -24,9 +24,8 @@ const {
   sanitizeDocId
 } = require("./src/services/firestore.service");
 const { getFirebaseWebConfig, hasFirebaseWebConfig } = require("./src/services/firebase.config");
-const { runCatModel, sampleSusceptibility } = require("./src/engine/catModel");
+const { runCatModel } = require("./src/engine/catModel");
 const { chatWithCopilot } = require("./src/services/copilot.service");
-const { classifyHotspots, gatePin } = require("./src/engine/hotspots");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -217,21 +216,6 @@ app.get("/api/exposure", async (req, res) => {
       error: "Failed to list exposure records from Firestore.",
       details: err.message
     });
-  }
-});
-
-app.get("/api/hotspots", async (req, res) => {
-  try {
-    const book = await classifyHotspots(sampleSusceptibility);
-    const lat = Number(req.query.lat);
-    const lon = Number(req.query.lon);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      const gate = await gatePin(lat, lon, sampleSusceptibility);
-      return res.json({ ...book, gate });
-    }
-    return res.json(book);
-  } catch (err) {
-    return res.status(500).json({ error: "Hotspot classification failed.", details: err.message });
   }
 });
 

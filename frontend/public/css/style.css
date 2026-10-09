@@ -1543,64 +1543,8 @@ body.run-agg-open {
   margin: 4px 0 8px;
 }
 
-.ai-loss-panel,
-.ai-overview {
-  margin: 0 0 18px;
-  padding: 18px 20px 16px;
-  background: #ffffff;
-  border: 1px solid var(--border);
-  border-left: 5px solid #00274c;
-}
-
-.ai-loss-panel[data-applied="true"] {
-  border-left-color: var(--brand);
-}
-
-.ai-loss-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: flex-end;
-  margin-bottom: 14px;
-}
-
-.ai-loss-head .chart-caption {
-  max-width: 420px;
-  margin: 0;
-  text-align: right;
-}
-
-.ai-loss-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.ai-overview .mod-title {
-  margin-bottom: 10px;
-}
-
-.ai-overview #ai-briefing {
-  margin: 0 0 16px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--ink);
-}
-
-.ai-overview #ai-assumptions {
-  margin: 0 16px 14px;
-  padding-left: 18px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.ai-overview #ai-assumptions li {
-  margin: 0 0 6px;
-}
-
-.swatch-ai {
-  background: #7c5cbf;
+.results-kpi {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .io-arrow {
@@ -2324,7 +2268,6 @@ body.run-agg-open {
   .decision-facts {
     grid-template-columns: 1fr 1fr;
   }
-  .ai-loss-stats,
   .results-kpi,
   .fin-io-stats-3 {
     grid-template-columns: 1fr 1fr;
@@ -2332,13 +2275,6 @@ body.run-agg-open {
   .results-head {
     flex-direction: column;
     align-items: flex-start;
-  }
-  .ai-loss-head {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .ai-loss-head .chart-caption {
-    text-align: left;
   }
   .cat-pipeline {
     grid-template-columns: 1fr 1fr;

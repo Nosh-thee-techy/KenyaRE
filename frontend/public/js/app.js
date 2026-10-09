@@ -69,12 +69,16 @@
     const parts = path.split(".");
     let cur = state;
     for (let i = 0; i < parts.length - 1; i++) {
+      if (cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {
+        cur[parts[i]] = {};
+      }
       cur = cur[parts[i]];
     }
     const last = parts[parts.length - 1];
-    if (cur[last] && typeof cur[last] === "object" && "value" in cur[last]) {
-      cur[last].value = value;
-      if (source) cur[last].source = source;
+    const existing = cur[last];
+    if (existing && typeof existing === "object" && "value" in existing) {
+      existing.value = value;
+      if (source) existing.source = source;
     } else {
       cur[last] = { value: value, source: source || "human" };
     }
@@ -261,20 +265,89 @@
     return Number.isNaN(n) ? null : n;
   }
 
+  function taggedValue(node) {
+    if (node == null || node === "") return null;
+    if (typeof node === "object" && "value" in node) {
+      if (node.value != null && typeof node.value === "object" && "value" in node.value) {
+        return node.value.value;
+      }
+      return node.value;
+    }
+    return node;
+  }
+
+  function coordNum(node) {
+    return num(taggedValue(node));
+  }
+
+  function normalizePair(lat, lon) {
+    const a = num(lat);
+    const b = num(lon);
+    if (a == null || b == null) return { lat: a, lon: b, swapped: false };
+    if (a >= 33 && a <= 42 && b >= -2.5 && b <= 1.5) {
+      return { lat: b, lon: a, swapped: true };
+    }
+    return { lat: a, lon: b, swapped: false };
+  }
+
   function readCoordInput(id, path) {
     const el = byId(id);
     if (el && el.value !== "") {
       const n = num(el.value);
       if (n != null) return n;
     }
-    return num(field(state, path));
+    return coordNum(field(state, path));
   }
 
   function getLat() {
-    return readCoordInput("lat", "coordinates.lat.value");
+    return readCoordInput("lat", "coordinates.lat");
   }
   function getLon() {
-    return readCoordInput("lon", "coordinates.lon.value");
+    return readCoordInput("lon", "coordinates.lon");
+  }
+
+  function captureKeptPin() {
+    const lat = getLat();
+    const lon = getLon();
+    const suggestion = state.audit && state.audit.geocode_suggestion;
+    const confirmed = Boolean(state.audit && state.audit.geocode_confirmed);
+    if (lat == null || lon == null) {
+      if (pendingOverrides && pendingOverrides.lat != null && pendingOverrides.lon != null) {
+        return {
+          lat: pendingOverrides.lat,
+          lon: pendingOverrides.lon,
+          source: "human",
+          confirmed: confirmed,
+          suggestion: suggestion,
+        };
+      }
+      return { lat: null, lon: null, source: null, confirmed: confirmed, suggestion: suggestion };
+    }
+    const src = field(state, "coordinates.lat.source") || "human";
+    return {
+      lat: lat,
+      lon: lon,
+      source: src,
+      confirmed: confirmed || src === "human" || src === "extracted",
+      suggestion: suggestion,
+    };
+  }
+
+  function restoreKeptPin(keep) {
+    if (!keep) return;
+    if (!state.audit) state.audit = {};
+    if (keep.suggestion && !state.audit.geocode_suggestion) {
+      state.audit.geocode_suggestion = keep.suggestion;
+    }
+    if (keep.confirmed) state.audit.geocode_confirmed = true;
+    if (keep.lat == null || keep.lon == null) return;
+    const pair = normalizePair(keep.lat, keep.lon);
+    const incoming = coordNum(state.coordinates && state.coordinates.lat);
+    const preferKeep = keep.source === "human" || keep.confirmed || incoming == null;
+    if (!preferKeep) return;
+    setField("coordinates.lat", pair.lat, keep.source || "human");
+    setField("coordinates.lon", pair.lon, keep.source || "human");
+    pendingOverrides = { lat: pair.lat, lon: pair.lon };
   }
 
   function syncCoordsFromForm() {
@@ -335,8 +408,10 @@
 
   function fillForm() {
     if (byId("lat")) {
-      setVal("lat", getLat() ?? "");
-      setVal("lon", getLon() ?? "");
+      const latEl = byId("lat");
+      const lonEl = byId("lon");
+      if (latEl && document.activeElement !== latEl) setVal("lat", getLat() ?? "");
+      if (lonEl && document.activeElement !== lonEl) setVal("lon", getLon() ?? "");
       setVal("elev", num(field(state, "coordinates.elevation_m.value")) ?? "");
       setVal("housing_class", field(state, "exposure.housing_class.value") || "");
       setVal("floors", num(field(state, "exposure.floors_above_ground.value")) ?? "");
@@ -710,7 +785,7 @@
       issues.push("GPS missing — drop a pin on the Nairobi map.");
     } else if (!window.MapModal.insideRaster(lat, lon)) {
       issues.push(
-        "GPS is outside the Nairobi raster (lon 36.60–37.00, lat −1.45 to −1.10)."
+        "GPS is outside Nairobi coverage (lon 36.60–37.05, lat −1.45 to −1.10). The pin is kept — move it inside to run."
       );
     }
     if (!klass) issues.push("Construction class is required.");
@@ -827,6 +902,9 @@
         lat: hit.lat,
         lon: hit.lon,
       };
+      if (window.MapModal && typeof window.MapModal.showSuggestion === "function") {
+        window.MapModal.showSuggestion(state.audit.geocode_suggestion);
+      }
     } catch (_) {}
   }
 
@@ -842,7 +920,8 @@
         Boolean(state.audit && state.audit.geocode_confirmed));
     const outsideRaster =
       locConfirmed && !window.MapModal.insideRaster(lat, lon);
-    const gpsMissing = !locConfirmed || outsideRaster;
+    // A placed/typed/confirmed pin is present even when it sits outside the TIFF.
+    const gpsMissing = !locConfirmed;
 
     const klass = taggedAt("exposure.housing_class");
     const classFromSlip =
@@ -1296,22 +1375,53 @@
     openAdjustView(formId);
   }
 
+  function asTaggedCoord(node, fallbackSource) {
+    if (node == null || node === "") return { value: null, source: null };
+    if (typeof node === "object" && node !== null && "value" in node) {
+      const inner =
+        node.value != null && typeof node.value === "object" && "value" in node.value
+          ? node.value.value
+          : node.value;
+      return { value: num(inner), source: node.source || fallbackSource || null };
+    }
+    return { value: num(node), source: fallbackSource || null };
+  }
+
+  function normalizeCanonicalCoords(rec) {
+    if (!rec || typeof rec !== "object") return rec;
+    if (!rec.coordinates) rec.coordinates = {};
+    const latSrc = rec.coordinates.lat && rec.coordinates.lat.source;
+    const lonSrc = rec.coordinates.lon && rec.coordinates.lon.source;
+    rec.coordinates.lat = asTaggedCoord(rec.coordinates.lat, latSrc);
+    rec.coordinates.lon = asTaggedCoord(rec.coordinates.lon, lonSrc || latSrc);
+    const pair = normalizePair(rec.coordinates.lat.value, rec.coordinates.lon.value);
+    if (pair.swapped) {
+      rec.coordinates.lat.value = pair.lat;
+      rec.coordinates.lon.value = pair.lon;
+    }
+    return rec;
+  }
+
   function ingestPayload(data) {
     if (!data) return window.emptyParse();
     const copy = Object.assign({}, data);
     delete copy.extracted_text;
-    if (copy.canonical) return copy.canonical;
-    if (copy.audit && copy.coordinates) return copy;
-    return fromExtractApi(copy);
+    let rec;
+    if (copy.canonical) rec = copy.canonical;
+    else if (copy.audit && copy.coordinates) rec = copy;
+    else rec = fromExtractApi(copy);
+    return normalizeCanonicalCoords(rec);
   }
 
   function applyParse(payload) {
+    const keep = captureKeptPin();
     if (payload && typeof payload.extracted_text === "string" && payload.extracted_text.trim()) {
       rawSlip = payload.extracted_text;
       const slipEl = document.getElementById("slip");
       if (slipEl) slipEl.value = payload.extracted_text;
     }
     state = JSON.parse(JSON.stringify(ingestPayload(payload)));
+    restoreKeptPin(keep);
     digested = true;
     intakeLocked = true;
     if (window.KenyaReSession) {
@@ -1322,7 +1432,7 @@
       if (sid) window.KenyaReSession.set(sid);
     }
     adjusting = false;
-    pendingOverrides = null;
+    if (!(keep && keep.lat != null && keep.lon != null)) pendingOverrides = null;
     fillForm();
     persistIntakeLock();
     const panel = document.getElementById("digest-panel");
@@ -1346,15 +1456,23 @@
     openReviewModal();
   }
 
+  let pinSeq = 0;
+
   function applyPin(lat, lon, source) {
-    const pinLat = roundCoord(lat);
-    const pinLon = roundCoord(lon);
+    const pair = normalizePair(lat, lon);
+    const pinLat = roundCoord(pair.lat);
+    const pinLon = roundCoord(pair.lon);
+    const src = source || "human";
+    const seq = ++pinSeq;
     pendingOverrides = { lat: pinLat, lon: pinLon };
-    setField("coordinates.lat", pinLat, source || "human");
-    setField("coordinates.lon", pinLon, source || "human");
-    if (state.audit) {
-      state.audit.is_blocked = false;
-      state.audit.block_reasons = [];
+    setField("coordinates.lat", pinLat, src);
+    setField("coordinates.lon", pinLon, src);
+    if (!state.audit) state.audit = {};
+    state.audit.is_blocked = false;
+    state.audit.block_reasons = [];
+    if (src === "geocoded") state.audit.geocode_confirmed = true;
+    if (window.MapModal && typeof window.MapModal.preview === "function") {
+      window.MapModal.preview(pinLat, pinLon, src);
     }
     fillForm();
     persistIntakeLock();
@@ -1363,10 +1481,18 @@
       const confirmed = Boolean(state.audit && state.audit.geocode_confirmed);
       const suggestion = state.audit && state.audit.geocode_suggestion;
       postParseSlip(rawSlip, null, pendingOverrides).then(function (data) {
+        if (seq !== pinSeq) return;
         state = JSON.parse(JSON.stringify(ingestPayload(data)));
         digested = true;
-        setField("coordinates.lat", pinLat, source || "human");
-        setField("coordinates.lon", pinLon, source || "human");
+        restoreKeptPin({
+          lat: pinLat,
+          lon: pinLon,
+          source: src,
+          confirmed: confirmed,
+          suggestion: suggestion,
+        });
+        setField("coordinates.lat", pinLat, src);
+        setField("coordinates.lon", pinLon, src);
         if (!state.audit) state.audit = {};
         if (confirmed) state.audit.geocode_confirmed = true;
         if (suggestion) state.audit.geocode_suggestion = suggestion;
@@ -1458,6 +1584,13 @@
 
   function wrapField(value, source) {
     if (value == null || value === "") return { value: null, source: null };
+    if (typeof value === "object" && value !== null && "value" in value) {
+      const inner =
+        value.value != null && typeof value.value === "object" && "value" in value.value
+          ? value.value.value
+          : value.value;
+      return { value: inner, source: value.source || source || "extracted" };
+    }
     return { value: value, source: source || "extracted" };
   }
 
@@ -1539,7 +1672,16 @@
     btn.disabled = true;
     document.getElementById("extract-spinner").classList.remove("hidden");
     try {
-      const data = await postParseSlip(rawSlip, pendingFile, null);
+      const live = normalizePair(getLat(), getLon());
+      const latSrc = field(state, "coordinates.lat.source");
+      const keepHuman =
+        latSrc === "human" || Boolean(state.audit && state.audit.geocode_confirmed);
+      const overrides =
+        pendingOverrides ||
+        (keepHuman && live.lat != null && live.lon != null
+          ? { lat: live.lat, lon: live.lon }
+          : null);
+      const data = await postParseSlip(rawSlip, pendingFile, overrides);
       pendingFile = null;
       applyParse(data);
       toast("Parsed by the intake engine.");

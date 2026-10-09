@@ -28,17 +28,18 @@ function applyFallbacks(raw = {}, options = {}) {
   let lon = raw.lon != null ? parseFloat(raw.lon) : null;
   let gpsSource = 'extracted';
 
+  if (options.humanCoords && options.humanCoords.lat != null && options.humanCoords.lon != null) {
+    lat = parseFloat(options.humanCoords.lat);
+    lon = parseFloat(options.humanCoords.lon);
+    gpsSource = 'human';
+  }
+
+  // Swap after human override — typed/placed lon,lat must still land.
   if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= 33 && lat <= 42 && lon >= -2.5 && lon <= 1.5) {
     const swapped = lat;
     lat = lon;
     lon = swapped;
     warnings.push("Latitude and longitude looked swapped; they were exchanged.");
-  }
-
-  if (options.humanCoords && options.humanCoords.lat != null && options.humanCoords.lon != null) {
-    lat = parseFloat(options.humanCoords.lat);
-    lon = parseFloat(options.humanCoords.lon);
-    gpsSource = 'human';
   }
 
   if (raw.address) {

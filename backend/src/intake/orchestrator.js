@@ -25,9 +25,10 @@ async function processBrokerSlip(input, options = {}) {
     if (apiKey && !regexLooksComplete(rawData)) {
       try {
         const gemini = await Promise.race([
-          extractExposure(input, apiKey, { images }),
+          extractExposure(input, apiKey, { images, skipRag: true }),
           new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Gemini timed out after 12s")), 12000);
+            const ms = images.length ? 18000 : 12000;
+            setTimeout(() => reject(new Error("Gemini timed out after " + ms / 1000 + "s")), ms);
           })
         ]);
         rawData = mergeRaw(rawData, flattenGemini(gemini));

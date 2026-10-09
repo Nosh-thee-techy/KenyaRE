@@ -214,6 +214,24 @@ async function runTests() {
   assert(altRaw.floors_above_ground === 2, "G+1 maps to 2 floors above ground");
   assert(altRaw.total_height_m === 8.5, "Building height extracted");
 
+  const tableGps = extractFromSlip(
+    [
+      "INSURED: Table GPS Ltd",
+      "Latitude: -1.2921",
+      "Longitude: 36.8219",
+      "STREET ADDRESS: Kenyatta Avenue, Nairobi"
+    ].join("\n")
+  );
+  assert(tableGps.lat === -1.2921 && tableGps.lon === 36.8219, "Table Latitude/Longitude lines extract GPS");
+
+  const swappedHuman = applyFallbacks(
+    { property_name: "Swapped pin" },
+    { humanCoords: { lat: 36.8219, lon: -1.2921 } }
+  );
+  assert(swappedHuman.coordinates.lat.value === -1.2921, "Swapped human lat/lon is exchanged to Nairobi lat");
+  assert(swappedHuman.coordinates.lon.value === 36.8219, "Swapped human lat/lon is exchanged to Nairobi lon");
+  assert(swappedHuman.coordinates.lat.source === "human", "Swapped pin stays tagged human");
+
   const noGpsSlip = extractFromSlip(
     [
       "INSURED: Missing GPS Ltd",

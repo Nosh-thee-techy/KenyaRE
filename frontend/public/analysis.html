@@ -269,7 +269,7 @@
               <header class="mod-head results-head">
                 <div>
                   <h2 id="results-title" class="mod-title">Results</h2>
-                  <p class="mod-lede">Write or hold, with the AI upgrade beside the base.</p>
+                  <p class="mod-lede">Write or hold this facultative risk.</p>
                 </div>
                 <button type="button" class="btn-primary px-4 py-2 text-sm" id="results-download">Download briefing</button>
               </header>
@@ -294,83 +294,35 @@
                 </div>
                 <p class="decision-why" id="decision-why"></p>
               </section>
-              <div class="ai-loss-stats results-kpi">
+              <div class="fin-io-stats results-kpi">
                 <div>
                   <p class="fact-label">Total exposure</p>
                   <p class="io-coord" id="res-tiv">not found</p>
-                  <p class="io-meta" id="res-tiv-src"></p>
+                  <p class="chart-caption" id="res-tiv-src"></p>
                 </div>
                 <div>
-                  <p class="fact-label">Construction</p>
-                  <p class="io-coord" id="res-class">not found</p>
+                  <p class="fact-label">AAL (net)</p>
+                  <p class="io-coord" id="res-aal">not found</p>
                 </div>
                 <div>
-                  <p class="fact-label">Base AAL</p>
-                  <p class="io-coord" id="fin-base-aal">not found</p>
-                </div>
-                <div>
-                  <p class="fact-label">AI-upgraded AAL</p>
-                  <p class="io-coord" id="fin-ai-aal">not found</p>
-                </div>
-                <div>
-                  <p class="fact-label">Difference</p>
-                  <p class="io-coord" id="fin-ai-delta">not found</p>
-                </div>
-                <div>
-                  <p class="fact-label">AI PML @ 100-year</p>
-                  <p class="io-coord" id="fin-ai-pml">not found</p>
+                  <p class="fact-label">PML @ 100-year</p>
+                  <p class="io-coord" id="res-pml">not found</p>
                 </div>
               </div>
-              <p class="wet-chip" id="ai-hotspot-note"></p>
-              <p class="chart-caption" id="ai-loss-lede"></p>
               <table class="rp-table" id="res-loss-table">
                 <thead>
                   <tr>
-                    <th>Return period</th>
-                    <th>Base net</th>
-                    <th>AI-upgraded net</th>
+                    <th>Storm</th>
+                    <th>Net loss</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
               </table>
-              <section class="ep-panel" aria-labelledby="res-ep-title">
-                <header class="ep-head">
-                  <h2 id="res-ep-title" class="mod-title">Exceedance curve</h2>
-                  <p class="chart-caption">Base net versus AI-upgraded net. Five stated points.</p>
-                </header>
-                <div class="chart-frame chart-frame-ep">
-                  <canvas id="res-ep-chart" aria-label="Results exceedance curve"></canvas>
-                </div>
-                <div class="ep-legend">
-                  <span><i class="swatch swatch-navy"></i> Ground-up</span>
-                  <span><i class="swatch swatch-crimson"></i> Base net</span>
-                  <span><i class="swatch swatch-ai"></i> AI-upgraded net</span>
-                  <span><i class="swatch swatch-gold"></i> 100-year mark</span>
-                </div>
-              </section>
-              <section class="ai-overview" id="ai-overview" aria-labelledby="ai-overview-title">
-                <h3 id="ai-overview-title" class="mod-title">AI overview</h3>
-                <p id="ai-briefing">not found</p>
-                <table class="rp-table" id="ai-sources">
-                  <thead>
-                    <tr>
-                      <th>Source</th>
-                      <th>What we used</th>
-                      <th>URL</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-                <details class="assume-box" open>
-                  <summary>Assumptions</summary>
-                  <ul id="ai-assumptions"></ul>
-                </details>
-              </section>
               <section class="results-chat" aria-labelledby="results-chat-title">
                 <h3 id="results-chat-title" class="mod-title">Ask about these numbers</h3>
                 <div id="results-chat-log" class="results-chat-log"></div>
                 <form id="results-chat-form" class="results-chat-form">
-                  <input id="results-chat-input" type="text" autocomplete="off" placeholder="Ask about AAL, the hotspot, or a term…" />
+                  <input id="results-chat-input" type="text" autocomplete="off" placeholder="Ask about AAL, PML, or a term…" />
                   <button type="submit" class="btn-primary px-4 py-2 text-sm">Send</button>
                 </form>
               </section>
@@ -386,6 +338,6 @@
     </div>
     <script src="js/session.js"></script>
     <script src="js/copilot.js"></script>
-    <script src="js/analysis.js?v=results1"></script>
+    <script src="js/analysis.js?v=base2"></script>
   </body>
 </html>
