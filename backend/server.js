@@ -4,6 +4,7 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("node:path");
+const fs = require("node:fs");
 const multer = require("multer");
 
 const { processBrokerSlip } = require("./src/intake/orchestrator");
@@ -13,6 +14,7 @@ const { loadDocument, supportedExtensions } = require("./src/loaders/document.lo
 const extractionRoutes = require("./src/routes/extraction.routes");
 const { saveExposure, getExposure, listExposures, deleteExposure } = require("./src/services/firestore.service");
 const { runCatModel } = require("./src/engine/catModel");
+const { chatWithCopilot } = require("./src/services/copilot.service");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -141,6 +143,23 @@ app.post("/api/intake/validate-coords", (req, res) => {
   return res.json(validateNairobiCoordinates(parseFloat(lat), parseFloat(lon)));
 });
 
+app.get("/api/intake/demo/landmark", async (_req, res) => {
+  try {
+    const slipPath = path.join(__dirname, "data/sample_placement_slip.txt");
+    if (!fs.existsSync(slipPath)) {
+      return res.status(404).json({ error: "Sample slip not found on server." });
+    }
+    const slipText = fs.readFileSync(slipPath, "utf-8");
+    const canonical = await processBrokerSlip(slipText);
+    return res.json({
+      raw_text: slipText,
+      canonical
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to load demo fixture.", details: err.message });
+  }
+});
+
 // -------------------------------------------------------------
 // FIRESTORE DATABASE PERSISTENCE ENDPOINTS
 // -------------------------------------------------------------
@@ -239,6 +258,37 @@ app.post("/api/model/run", async (req, res) => {
     console.error("Error executing catastrophe model:", err);
     return res.status(500).json({
       error: "Catastrophe model execution failed.",
+      details: err.message
+    });
+  }
+});
+
+// -------------------------------------------------------------
+// STEP 5: AI UNDERWRITING COPILOT & WHAT-IF INTELLIGENCE ENDPOINT
+// Answers technical/non-technical questions and executes live what-if simulations
+// -------------------------------------------------------------
+app.post("/api/copilot/chat", async (req, res) => {
+  try {
+    const { query, exposure, results, history } = req.body || {};
+    if (!query || !String(query).trim()) {
+      return res.status(400).json({ error: "Field 'query' is required." });
+    }
+
+    const copilotResponse = await chatWithCopilot({
+      query: String(query).trim(),
+      exposure: exposure || {},
+      results: results || null,
+      history: history || []
+    });
+
+    return res.json({
+      success: true,
+      ...copilotResponse
+    });
+  } catch (err) {
+    console.error("Error in Copilot chat:", err);
+    return res.status(500).json({
+      error: "Copilot chat failed.",
       details: err.message
     });
   }

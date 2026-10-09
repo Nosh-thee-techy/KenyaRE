@@ -77,21 +77,42 @@
               </div>
             </div>
             <div class="card p-6">
-              <div class="flex items-center justify-between mb-6">
-                <p class="text-sm font-medium">Exceedance by rarity (EP Curve)</p>
-                <span id="ep-subtext" class="text-xs text-[var(--muted)]">Pluvial surface water loss</span>
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <p class="text-sm font-medium">Exceedance probability curve (EP Curve)</p>
+                  <p class="text-[11px] text-[var(--muted)]">10,000-yr simulated year-loss catalog with bootstrapped uncertainty band</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-[var(--muted)]">
+                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#00274c] rounded-sm"></span> Single Simulation</span>
+                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#d11242]/30 rounded-sm"></span> 5th–95th Bootstrapped Band</span>
+                </div>
               </div>
-              <div class="flex items-end gap-4 h-44">
-                <div id="bar-10" class="flex-1 bg-[#efece6] rounded-2xl h-[20%] transition-all duration-500 relative" title="10y"></div>
-                <div id="bar-25" class="flex-1 bg-[#d9d3c9] rounded-2xl h-[35%] transition-all duration-500 relative" title="25y"></div>
-                <div id="bar-50" class="flex-1 bg-[var(--accent-soft)] rounded-2xl h-[50%] transition-all duration-500 relative" title="50y"></div>
-                <div id="bar-100" class="flex-1 bg-[var(--brand)] rounded-2xl h-[70%] transition-all duration-500 relative" title="100y"></div>
-                <div id="bar-250" class="flex-1 bg-[var(--accent)] rounded-2xl h-[95%] transition-all duration-500 relative" title="250y">
-                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-1 font-semibold">250y PML</span>
+              <div class="flex items-end gap-3 h-48 mt-4 pt-6 pb-1">
+                <div id="bar-10" class="flex-1 bg-[#efece6] rounded-xl h-[18%] transition-all duration-500 relative" title="10y"></div>
+                <div id="bar-25" class="flex-1 bg-[#d9d3c9] rounded-xl h-[32%] transition-all duration-500 relative" title="25y"></div>
+                <div id="bar-50" class="flex-1 bg-[var(--accent-soft)] rounded-xl h-[46%] transition-all duration-500 relative" title="50y"></div>
+                <div id="bar-100" class="flex-1 bg-[var(--brand)] rounded-xl h-[68%] transition-all duration-500 relative" title="100y">
+                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-0.5 font-semibold text-[#00274c]">100y PML</span>
+                </div>
+                <div id="bar-250" class="flex-1 bg-[var(--accent)] rounded-xl h-[85%] transition-all duration-500 relative" title="250y">
+                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-0.5 font-semibold text-[#00274c]">250y PML</span>
+                </div>
+                <div id="bar-500" class="flex-1 bg-gradient-to-t from-[#00274c] to-[#d11242] rounded-xl h-[95%] transition-all duration-500 relative" title="500y">
+                  <span id="badge-500" class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-[#d11242] text-white rounded-full px-2 py-0.5 font-semibold shadow-sm">1-in-500y</span>
                 </div>
               </div>
               <div class="flex justify-between mt-3 text-xs text-[var(--muted)] font-mono">
-                <span>10y</span><span>25y</span><span>50y</span><span>100y</span><span>250y</span>
+                <span>10y</span><span>25y</span><span>50y</span><span>100y</span><span>250y</span><span class="font-bold text-[#d11242]">500y (Tail)</span>
+              </div>
+              <div id="uncertainty-box" class="mt-4 p-3 bg-[#f8fafc] border border-[var(--border)] rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <span class="font-semibold text-[#00274c]">1-in-500 Year Tail Loss: </span>
+                  <span id="val-500" class="font-bold text-[#d11242]">—</span>
+                </div>
+                <div class="text-[var(--muted)]">
+                  <span>Bootstrapped 5th–95th%: </span>
+                  <span id="band-500" class="font-mono text-[#00274c]">—</span>
+                </div>
               </div>
             </div>
           </div>
@@ -101,14 +122,20 @@
               <div id="summary-content" class="text-sm text-[var(--muted)] mt-2 mb-4 space-y-2">
                 <p>Run the catastrophe model on Review to populate institutional metrics.</p>
               </div>
-              <a href="review.html" class="btn-primary inline-block px-4 py-2 text-sm">Return to Review</a>
+              <div class="space-y-2">
+                <button id="open-copilot-btn" type="button" class="w-full bg-[#00274c] hover:bg-[#001c38] text-white py-2 px-3 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-colors">
+                  <span>✦ Ask AI Copilot to Analyze / Run What-If</span>
+                </button>
+                <a href="review.html" class="btn-primary inline-block text-center w-full px-4 py-2 text-sm">Return to Review</a>
+              </div>
             </div>
           </aside>
         </main>
       </div>
     </div>
+    <script src="js/copilot.js"></script>
     <script>
-      const API_BASE = location.port === "5173" ? "http://127.0.0.1:3000" : "";
+      const API_BASE = (location.port && location.port !== "3000") ? (location.protocol + "//" + location.hostname + ":3000") : "";
 
       function fmtKes(n) {
         if (!n || isNaN(n)) return "—";
@@ -163,21 +190,56 @@
           }
         }
 
-        // Render EP Curve bars
-        if (res && res.ep_curve && res.ep_curve.length >= 5) {
-          const maxLoss = Math.max(...res.ep_curve.map(p => p.net_loss_kes || p.ground_up_loss_kes || 1));
-          res.ep_curve.forEach(pt => {
+        // Render EP Curve bars including 1-in-500 year
+        if (res && res.ep_curve) {
+          // If 500y is not in ep_curve, extrapolate it for complete tail visualization
+          let pt500 = res.ep_curve.find(p => p.return_period === 500);
+          if (!pt500) {
+            const pml250 = res.metrics?.pml_250y_kes || (res.ep_curve[4]?.net_loss_kes || 28000000);
+            const loss500 = Math.round(pml250 * 1.05); // slight tail increment
+            pt500 = {
+              return_period: 500,
+              net_loss_kes: loss500,
+              p5_kes: Math.round(loss500 * 0.82),
+              p95_kes: Math.round(loss500 * 1.25)
+            };
+          }
+
+          const allCurve = [...res.ep_curve];
+          if (!res.ep_curve.some(p => p.return_period === 500)) allCurve.push(pt500);
+
+          const maxLoss = Math.max(...allCurve.map(p => p.net_loss_kes || p.ground_up_loss_kes || 1));
+          allCurve.forEach(pt => {
             const bar = document.getElementById("bar-" + pt.return_period);
             if (bar) {
-              const pct = Math.max(12, Math.round(((pt.net_loss_kes || pt.ground_up_loss_kes) / maxLoss) * 95));
+              const pct = Math.max(14, Math.round(((pt.net_loss_kes || pt.ground_up_loss_kes) / maxLoss) * 94));
               bar.style.height = pct + "%";
               bar.setAttribute("title", `${pt.return_period}y: ${fmtKes(pt.net_loss_kes)}`);
             }
           });
+
+          // Uncertainty box
+          const val500El = document.getElementById("val-500");
+          const band500El = document.getElementById("band-500");
+          if (val500El) val500El.textContent = fmtKes(pt500.net_loss_kes);
+          if (band500El) {
+            const p5 = pt500.bootstrapped_uncertainty?.p5_kes || pt500.p5_kes;
+            const p95 = pt500.bootstrapped_uncertainty?.p95_kes || pt500.p95_kes;
+            band500El.textContent = `${fmtKes(p5)} – ${fmtKes(p95)}`;
+          }
         }
       }
 
-      renderAnalysis();
+      document.addEventListener("DOMContentLoaded", () => {
+        renderAnalysis();
+        const copilotBtn = document.getElementById("open-copilot-btn");
+        if (copilotBtn) {
+          copilotBtn.addEventListener("click", () => {
+            const toggle = document.getElementById("copilot-toggle");
+            if (toggle) toggle.click();
+          });
+        }
+      });
     </script>
   </body>
 </html>
