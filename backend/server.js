@@ -24,8 +24,9 @@ const {
   sanitizeDocId
 } = require("./src/services/firestore.service");
 const { getFirebaseWebConfig, hasFirebaseWebConfig } = require("./src/services/firebase.config");
-const { runCatModel } = require("./src/engine/catModel");
+const { runCatModel, sampleSusceptibility } = require("./src/engine/catModel");
 const { chatWithCopilot } = require("./src/services/copilot.service");
+const { classifyHotspots, gatePin } = require("./src/engine/hotspots");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -97,16 +98,21 @@ async function parseSlipHandler(req, res) {
     const overrides = parseOverrides(req.body && req.body.overrides);
     const canonical = await processBrokerSlip(text || "", { overrides, images });
 
-    // Auto-save to Firestore database so data is accessible across Review and Run
-    try {
-      const savedDoc = await saveExposure(canonical);
-      canonical.id = savedDoc.id;
-      canonical.storage = savedDoc.storage;
-    } catch (saveErr) {
-      console.warn("[Firestore] Auto-save on parse slip notice:", saveErr.message);
-    }
+    const sessionId =
+      sanitizeDocId(canonical.id || asPlainId(canonical.reference)) ||
+      sanitizeDocId("PROP-" + Date.now());
+    canonical.id = sessionId;
 
-    return res.json({ ...canonical, id: canonical.id || null, extracted_text: text || "" });
+    // Do not wait on Firestore — the underwriter should see the digest immediately.
+    saveExposure(canonical)
+      .then(function (savedDoc) {
+        if (savedDoc && savedDoc.id) canonical.id = savedDoc.id;
+      })
+      .catch(function (saveErr) {
+        console.warn("[Firestore] Auto-save on parse slip notice:", saveErr.message);
+      });
+
+    return res.json({ ...canonical, id: sessionId, extracted_text: text || "" });
   } catch (err) {
     console.error("Error parsing slip:", err);
     return res.status(500).json({
@@ -211,6 +217,21 @@ app.get("/api/exposure", async (req, res) => {
       error: "Failed to list exposure records from Firestore.",
       details: err.message
     });
+  }
+});
+
+app.get("/api/hotspots", async (req, res) => {
+  try {
+    const book = await classifyHotspots(sampleSusceptibility);
+    const lat = Number(req.query.lat);
+    const lon = Number(req.query.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      const gate = await gatePin(lat, lon, sampleSusceptibility);
+      return res.json({ ...book, gate });
+    }
+    return res.json(book);
+  } catch (err) {
+    return res.status(500).json({ error: "Hotspot classification failed.", details: err.message });
   }
 });
 

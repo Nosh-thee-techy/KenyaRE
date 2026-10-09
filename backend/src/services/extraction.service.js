@@ -75,17 +75,8 @@ async function extractExposure(text, apiKey, options = {}) {
       throw error;
     }
   }
-  let validationError = "";
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      return exposureSchema.parse(await invokeGemini(context, apiKey, validationError, images));
-    } catch (error) {
-      validationError =
-        error instanceof SyntaxError ? "The response was not valid JSON." : error.message;
-      if (attempt === 1) throw new Error(`Gemini returned invalid extraction data: ${validationError}`);
-    }
-  }
-  throw new Error("Extraction failed");
+  const parsed = await invokeGemini(context, apiKey, "", images);
+  return exposureSchema.parse(parsed);
 }
 
 module.exports = { extractExposure };

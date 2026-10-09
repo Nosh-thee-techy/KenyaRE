@@ -513,13 +513,13 @@ For **${propName}** (${floors} storeys), water only affects the ground plate (${
     container.id = "copilot-widget";
     container.innerHTML = `
       <!-- Launcher Button -->
-      <button id="copilot-toggle" class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-[#00274c] hover:bg-[#001c38] text-white px-4 py-3 rounded-full shadow-2xl border border-[rgba(209,18,66,0.6)] transition-all transform hover:scale-105 select-none" title="Kenya Re AI Underwriting Copilot">
+      <button id="copilot-toggle" class="copilot-launch flex items-center gap-2.5 bg-[#00274c] hover:bg-[#001c38] text-white px-4 py-3 rounded-full border border-[rgba(209,18,66,0.6)] select-none" title="Kenya Re AI Underwriting Copilot">
         <span class="w-2.5 h-2.5 rounded-full bg-[#d11242] animate-pulse"></span>
-        <span class="font-medium text-sm tracking-wide">✦ AI Underwriting Copilot</span>
+        <span class="font-medium text-sm tracking-wide">AI Underwriting Copilot</span>
       </button>
 
       <!-- Chat Drawer -->
-      <div id="copilot-drawer" class="hidden fixed bottom-20 right-6 z-50 w-[460px] max-w-[calc(100vw-32px)] h-[600px] max-h-[calc(100vh-100px)] bg-[#ffffff] rounded-2xl shadow-2xl border border-[var(--border)] flex flex-col overflow-hidden font-sans">
+      <div id="copilot-drawer" class="copilot-panel hidden w-[460px] max-w-[calc(100vw-32px)] h-[600px] max-h-[calc(100vh-100px)] bg-[#ffffff] border border-[var(--border)] flex flex-col overflow-hidden font-sans">
         
         <!-- Drawer Header -->
         <div class="px-5 py-3.5 bg-[#00274c] text-white flex items-center justify-between border-b border-[#001c38]">

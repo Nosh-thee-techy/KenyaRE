@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -281,6 +281,22 @@
             </button>
           </div>
         </footer>
+      </div>
+    </div>
+
+    <div id="run-agg" class="run-agg hidden" aria-hidden="true" aria-live="polite">
+      <div class="run-agg-card">
+        <p class="run-agg-kicker">Catastrophe engine</p>
+        <h2 class="run-agg-title">Aggregating this risk</h2>
+        <p class="run-agg-pin" id="run-agg-pin"></p>
+        <ol class="run-agg-steps">
+          <li data-agg="hazard">Hazard · TIFF scores at this pin</li>
+          <li data-agg="vulnerability">Vulnerability · score to depth to JRC</li>
+          <li data-agg="exposure">Exposure · TIV × damage ratio</li>
+          <li data-agg="finance">Finance · AAL, PML, EP</li>
+          <li data-agg="ai">AI upgrade · 24 hotspots and sources</li>
+        </ol>
+        <p class="run-agg-note">The desk opens when this run is stored.</p>
       </div>
     </div>
 

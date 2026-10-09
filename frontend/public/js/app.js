@@ -261,11 +261,31 @@
     return Number.isNaN(n) ? null : n;
   }
 
+  function readCoordInput(id, path) {
+    const el = byId(id);
+    if (el && el.value !== "") {
+      const n = num(el.value);
+      if (n != null) return n;
+    }
+    return num(field(state, path));
+  }
+
   function getLat() {
-    return num(field(state, "coordinates.lat.value"));
+    return readCoordInput("lat", "coordinates.lat.value");
   }
   function getLon() {
-    return num(field(state, "coordinates.lon.value"));
+    return readCoordInput("lon", "coordinates.lon.value");
+  }
+
+  function syncCoordsFromForm() {
+    const lat = getLat();
+    const lon = getLon();
+    if (lat != null) {
+      setField("coordinates.lat", lat, field(state, "coordinates.lat.source") || "human");
+    }
+    if (lon != null) {
+      setField("coordinates.lon", lon, field(state, "coordinates.lon.source") || "human");
+    }
   }
 
   function impliedRate() {
@@ -1307,10 +1327,12 @@
     persistIntakeLock();
     const panel = document.getElementById("digest-panel");
     if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (IS_REVIEW) renderPageMissing();
+    else openReviewIfNeeded();
     enrichGeocodeSuggestion().then(function () {
       persistIntakeLock();
+      fillForm();
       if (IS_REVIEW) renderPageMissing();
-      else openReviewIfNeeded();
     });
   }
 
@@ -1343,6 +1365,8 @@
       postParseSlip(rawSlip, null, pendingOverrides).then(function (data) {
         state = JSON.parse(JSON.stringify(ingestPayload(data)));
         digested = true;
+        setField("coordinates.lat", pinLat, source || "human");
+        setField("coordinates.lon", pinLon, source || "human");
         if (!state.audit) state.audit = {};
         if (confirmed) state.audit.geocode_confirmed = true;
         if (suggestion) state.audit.geocode_suggestion = suggestion;
@@ -1556,6 +1580,24 @@
       return;
     }
 
+    syncCoordsFromForm();
+    const pinLat = getLat();
+    const pinLon = getLon();
+
+    const runBtn = document.getElementById("run-btn");
+    if (runBtn) {
+      runBtn.disabled = true;
+      runBtn.setAttribute("aria-busy", "true");
+    }
+    if (window.KenyaReSession) {
+      window.KenyaReSession.setPending(sessionId);
+      window.KenyaReSession.showAgg({
+        property: propName,
+        lat: pinLat,
+        lon: pinLon
+      });
+    }
+
     const canonicalRecord = {
       id: sessionId,
       property_name: propName,
@@ -1619,20 +1661,36 @@
       if (!res.ok) throw new Error("Catastrophe engine returned HTTP " + res.status);
       const modelData = await res.json();
       const id = modelData.id || sessionId;
-      if (window.KenyaReSession) window.KenyaReSession.set(id);
-      console.log("✅ [Model Run] Session", id, "input + output saved");
-      toast("Run complete. Session " + id);
-      showHandoff(id);
+      if (window.KenyaReSession) {
+        window.KenyaReSession.set(id);
+        window.KenyaReSession.setPending(id);
+        window.KenyaReSession.setFreshRun({
+          id: id,
+          input: modelData.input || canonicalRecord,
+          output: modelData.output || { results: modelData.results },
+          results: modelData.results || (modelData.output && modelData.output.results) || null
+        });
+      }
+      toast("Run complete. Opening analysis.");
+      window.location.href = "analysis.html?id=" + encodeURIComponent(id) + "&fresh=1";
     } catch (err) {
       console.warn("Notice: Cat model offline fallback:", err.message);
       toast(err.message || "Model run failed.", true);
+      if (window.KenyaReSession) {
+        window.KenyaReSession.clearPending();
+        window.KenyaReSession.hideAgg();
+      }
+      if (runBtn) {
+        runBtn.disabled = false;
+        runBtn.removeAttribute("aria-busy");
+      }
     }
   }
 
   function showHandoff(id) {
     const sid = (window.KenyaReSession && window.KenyaReSession.set(id)) || id;
     window.location.href = sid
-      ? "analysis.html?id=" + encodeURIComponent(sid)
+      ? "analysis.html?id=" + encodeURIComponent(sid) + "&fresh=1"
       : "analysis.html";
   }
 
@@ -1943,8 +2001,19 @@
       const record = Array.isArray(data) ? data[0] : data;
       if (!record || (!record.property_name && !record.coordinates)) return false;
 
+      const pinned =
+        field(state, "coordinates.lat.source") === "human" ||
+        field(state, "coordinates.lon.source") === "human";
+      const keepLat = pinned ? getLat() : null;
+      const keepLon = pinned ? getLon() : null;
       if (window.KenyaReSession) window.KenyaReSession.set(record.id || queryId);
       applyParse(record);
+      if (keepLat != null && keepLon != null) {
+        setField("coordinates.lat", keepLat, "human");
+        setField("coordinates.lon", keepLon, "human");
+        fillForm();
+        persistIntakeLock();
+      }
       const name = (typeof record.property_name === "object" ? record.property_name.value : record.property_name) || "risk profile";
       toast("Retrieved '" + name + "' from database.");
       return true;

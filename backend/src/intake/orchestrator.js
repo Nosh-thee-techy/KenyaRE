@@ -5,7 +5,6 @@
 
 const { extractFromSlip } = require('./mockRAG');
 const { applyFallbacks } = require('./fallbackEngine');
-const { geocodeAddress } = require('../services/geocoder');
 const { extractExposure } = require('../services/extraction.service');
 const { flattenGemini, mergeRaw, regexLooksComplete } = require('./geminiBridge');
 
@@ -25,7 +24,12 @@ async function processBrokerSlip(input, options = {}) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey && !regexLooksComplete(rawData)) {
       try {
-        const gemini = await extractExposure(input, apiKey, { images });
+        const gemini = await Promise.race([
+          extractExposure(input, apiKey, { images }),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Gemini timed out after 12s")), 12000);
+          })
+        ]);
         rawData = mergeRaw(rawData, flattenGemini(gemini));
       } catch (err) {
         console.error('Gemini extraction failed:', err && err.message ? err.message : err);
@@ -49,32 +53,8 @@ async function processBrokerSlip(input, options = {}) {
     }
   }
 
-  // Look up an address when GPS is missing — do not auto-apply; underwriter confirms.
+  // Nominatim is done on the intake page after paint so parse is not blocked.
   let geocodeSuggestion = options.geocodeSuggestion || null;
-  if (
-    !geocodeSuggestion &&
-    (rawData.lat == null || rawData.lon == null) &&
-    !options.humanCoords
-  ) {
-    const query = rawData.address || rawData.property_name;
-    if (query) {
-      const geoResult = await geocodeAddress(query);
-      if (geoResult.success && geoResult.candidates.length > 0) {
-        const best =
-          geoResult.candidates.find((c) => c.is_inside_nairobi) ||
-          geoResult.candidates[0];
-        if (best) {
-          geocodeSuggestion = {
-            query: String(query),
-            label: best.display_name,
-            lat: best.lat,
-            lon: best.lon,
-            is_inside_nairobi: Boolean(best.is_inside_nairobi)
-          };
-        }
-      }
-    }
-  }
 
   const canonical = applyFallbacks(rawData, {
     ...options,

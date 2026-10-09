@@ -1,7 +1,8 @@
 /**
  * Analysis frontend — four-module CAT desk (hazard → vulnerability → exposure → finance).
- * Hazard shows TIFF scores only. Vulnerability translates those scores locally:
- *   depth = H_max(RP) × score, then JRC Huizinga DR for the construction class.
+ * Shared storm rail (2 / 5 / 10 / 50 / 100). Each step changes the metric.
+ * Hazard: is this pin wet? Vulnerability: how badly does the class fail?
+ * Exposure: TIV × DR. Finance: write / AAL / PML 100y / EP.
  * Does not invent TIFF scores. Sample layout never pretends to have them.
  *
  * Teammate contract (POST /api/model/run → { exposure, results }):
@@ -22,7 +23,9 @@
     concrete_rcc: "Commercial RCC"
   };
 
-  const H_MAX_M = { 10: 0.5, 25: 0.8, 50: 1.2, 100: 1.8, 250: 2.2 };
+  const H_MAX_M = { 2: 0.5, 5: 0.8, 10: 1.2, 50: 1.8, 100: 2.2 };
+  const RAIL_RPS = [2, 5, 10, 50, 100];
+  const STORM_NAMES = { 2: "Common", 5: "Occasional", 10: "Moderate", 50: "Severe", 100: "Extreme" };
 
   const VULN_CURVES = {
     informal_iron_sheet: { K: 0.9, S0: 0.3, k: 3.5 },
@@ -54,7 +57,7 @@
   function realScorePoints(ctx) {
     if (!ctx || ctx.isSample || ctx.scoreSource === "sample") return [];
     return (ctx.curve || []).filter(function (p) {
-      return p.susceptibility_score != null;
+      return p.susceptibility_score != null || p.damage_ratio != null || p.flood_depth_m != null;
     });
   }
 
@@ -62,14 +65,18 @@
     return realScorePoints(ctx).map(function (p) {
       const score = p.susceptibility_score;
       const hmax = p.h_max_m != null ? p.h_max_m : hMaxFor(p.return_period);
-      const depth =
+      const derived =
         score == null || hmax == null ? null : score <= 0 ? 0 : Math.round(hmax * score * 100) / 100;
+      const depth = p.flood_depth_m != null ? p.flood_depth_m : derived;
+      const dr = p.damage_ratio != null ? p.damage_ratio : damageRatioAt(depth, ctx.classKey);
       return {
         return_period: p.return_period,
         susceptibility_score: score,
         h_max_m: hmax,
         flood_depth_m: depth,
-        damage_ratio: damageRatioAt(depth, ctx.classKey)
+        damage_ratio: dr,
+        ground_up_loss_kes: p.ground_up_loss_kes,
+        net_loss_kes: p.net_loss_kes
       };
     });
   }
@@ -156,12 +163,13 @@
 
   function normalizePoint(p) {
     if (!p || typeof p !== "object") return null;
-    const rp = firstNum(p, ["return_period", "rp", "returnPeriod"]);
+    const rp = firstNum(p, ["return_period", "return_period_years", "rp", "returnPeriod"]);
     if (rp == null) return null;
+    const loss = p.loss && typeof p.loss === "object" ? p.loss : {};
     return {
       tier: p.tier || null,
       return_period: rp,
-      aep: firstNum(p, ["aep", "exceedance_prob", "exceedanceProbability"]),
+      aep: firstNum(p, ["aep", "annual_exceedance_probability", "exceedance_prob", "exceedanceProbability"]),
       susceptibility_score: firstNum(p, [
         "susceptibility_score",
         "susceptibility",
@@ -170,15 +178,15 @@
         "score"
       ]),
       h_max_m: firstNum(p, ["h_max_m", "h_max", "hMax", "assumed_max_depth_m", "max_depth_m"]),
-      flood_depth_m: firstNum(p, ["flood_depth_m", "depth_m", "local_depth_m", "depth"]),
-      damage_ratio: firstNum(p, ["damage_ratio", "dr", "damageRatio"]),
+      flood_depth_m: firstNum(p, ["flood_depth_m", "estimated_depth_m", "depth_m", "local_depth_m", "depth"]),
+      damage_ratio: firstNum(p, ["damage_ratio", "dr", "damageRatio"]) || firstNum(p.damage || {}, ["damage_ratio"]),
       ground_up_loss_kes: firstNum(p, [
         "ground_up_loss_kes",
         "ground_up",
         "groundUpLoss"
-      ]),
-      deductible_kes: firstNum(p, ["deductible_kes", "deductible"]),
-      net_loss_kes: firstNum(p, ["net_loss_kes", "net", "gross_loss_kes", "netLoss"])
+      ]) || firstNum(loss, ["gross_damage_kes"]),
+      deductible_kes: firstNum(p, ["deductible_kes", "deductible"]) || firstNum(loss, ["deductible_kes"]),
+      net_loss_kes: firstNum(p, ["net_loss_kes", "net", "gross_loss_kes", "netLoss", "insured_loss_kes"]) || firstNum(loss, ["insured_loss_kes", "net_loss_kes"])
     };
   }
 
@@ -237,14 +245,91 @@
           rate_on_line_pct: 0.66
         },
         ep_curve: [
-          { return_period: 10, aep: 0.1, damage_ratio: 0.08, ground_up_loss_kes: 4000000, net_loss_kes: 2000000 },
-          { return_period: 25, aep: 0.04, damage_ratio: 0.14, ground_up_loss_kes: 11000000, net_loss_kes: 8000000 },
-          { return_period: 50, aep: 0.02, damage_ratio: 0.22, ground_up_loss_kes: 21000000, net_loss_kes: 18000000 },
-          { return_period: 100, aep: 0.01, damage_ratio: 0.38, ground_up_loss_kes: 32000000, net_loss_kes: 28000000 },
-          { return_period: 250, aep: 0.004, damage_ratio: 0.48, ground_up_loss_kes: 42000000, net_loss_kes: 38000000 }
-        ]
+          { return_period: 2, aep: 0.5, damage_ratio: 0.06, ground_up_loss_kes: 3000000, net_loss_kes: 0 },
+          { return_period: 5, aep: 0.2, damage_ratio: 0.11, ground_up_loss_kes: 8000000, net_loss_kes: 3000000 },
+          { return_period: 10, aep: 0.1, damage_ratio: 0.18, ground_up_loss_kes: 16000000, net_loss_kes: 11000000 },
+          { return_period: 50, aep: 0.02, damage_ratio: 0.32, ground_up_loss_kes: 28000000, net_loss_kes: 23000000 },
+          { return_period: 100, aep: 0.01, damage_ratio: 0.44, ground_up_loss_kes: 38000000, net_loss_kes: 33000000 }
+        ],
+        ai_metrics: {
+          aal_ground_up_kes: 14200000,
+          aal_net_kes: 10800000,
+          pml_100y_kes: 41000000
+        },
+        ai_ep_curve: [
+          { return_period: 2, aep: 0.5, damage_ratio: 0.1, ground_up_loss_kes: 5200000, net_loss_kes: 200000 },
+          { return_period: 5, aep: 0.2, damage_ratio: 0.16, ground_up_loss_kes: 11800000, net_loss_kes: 6800000 },
+          { return_period: 10, aep: 0.1, damage_ratio: 0.24, ground_up_loss_kes: 22000000, net_loss_kes: 17000000 },
+          { return_period: 50, aep: 0.02, damage_ratio: 0.38, ground_up_loss_kes: 34000000, net_loss_kes: 29000000 },
+          { return_period: 100, aep: 0.01, damage_ratio: 0.5, ground_up_loss_kes: 46000000, net_loss_kes: 41000000 }
+        ],
+        ai_upgrade: {
+          applied: true,
+          reason: "blinded_drainage_corridor",
+          radius_km: 2,
+          surcharge: { type: "susceptibility_add", value: 0.28 },
+          classification_source: "kit_labels",
+          blinded_count: 4,
+          hit_count: 6,
+          nearest_blinded: { name: "Westlands", distance_km: 0.4, class: "blinded" },
+          drainage_evidence: true,
+          briefing:
+            "Sample layout. TIFF proxy misses Westlands (drainage overload). AI surcharge +0.28 susceptibility changes AAL. News is not a gauge.",
+          sources: [
+            { title: "The Star, 15 March 2026", what: "37 flood-prone neighbourhoods", url: "https://www.the-star.co.ke" },
+            { title: "Kenya Climate Directory, 2024", what: "Drainage capacity diagnostic", url: "https://kenyaclimatedirectory.org" },
+            { title: "JRC / Huizinga", what: "Depth–damage shape", url: "https://publications.jrc.ec.europa.eu" }
+          ],
+          assumptions: [
+            "Sample numbers — not a live run.",
+            "Upgrade radius is 2 km from a blinded hotspot.",
+            "susceptibility_ai = min(1, base + 0.28).",
+            "News is not a street gauge."
+          ]
+        }
       }
     };
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  function runHasOutput(run) {
+    if (!run || !run.results) return false;
+    const res = run.results;
+    return Boolean(
+      (res.ep_curve && res.ep_curve.length) ||
+        (res.scenarios && res.scenarios.length) ||
+        res.metrics ||
+        res.ai_upgrade
+    );
+  }
+
+  function bundleToRun(id, bundle) {
+    if (!bundle) return null;
+    const input = bundle.input || {};
+    const output = bundle.output || {};
+    const results = bundle.results || output.results || output;
+    window.__kenyaReSessionPair = { id: id, input: input, output: output };
+    return {
+      exposure: input,
+      results: results && typeof results === "object" ? results : null,
+      raw: { id: id, input: input, output: output }
+    };
+  }
+
+  async function fetchSessionRun(id) {
+    let session = await fetchJson(API_BASE + "/api/session/" + encodeURIComponent(id));
+    if (!session || (!session.input && !session.output)) {
+      const input = await fetchJson(API_BASE + "/api/exposure/" + encodeURIComponent(id));
+      const output = await fetchJson(API_BASE + "/api/model/" + encodeURIComponent(id));
+      session = { id: id, input: input, output: output };
+    }
+    if (!session || (!session.input && !session.output)) return null;
+    return bundleToRun(session.id || id, session);
   }
 
   async function loadRun() {
@@ -256,27 +341,46 @@
     const id = (window.KenyaReSession && window.KenyaReSession.get()) || q.get("id");
     if (!id) return null;
 
+    const fresh = window.KenyaReSession && window.KenyaReSession.getFreshRun(id);
+    if (fresh) {
+      const fromFresh = bundleToRun(id, fresh);
+      if (runHasOutput(fromFresh)) return fromFresh;
+    }
+
     try {
-      const ctrl = typeof AbortController === "function" ? new AbortController() : null;
-      const timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
-      const res = await fetch(API_BASE + "/api/session/" + encodeURIComponent(id), ctrl ? { signal: ctrl.signal } : {});
-      if (timer) clearTimeout(timer);
-      if (!res.ok) return null;
-      const session = await res.json();
-      if (window.KenyaReSession) window.KenyaReSession.set(session.id || id);
-      const input = session.input || {};
-      const output = session.output || {};
-      const results = output.results || output;
-      window.__kenyaReSessionPair = { id: session.id || id, input: input, output: output };
-      return {
-        exposure: input,
-        results: results,
-        raw: { id: session.id || id, input: input, output: output }
-      };
+      const sessionRun = await fetchSessionRun(id);
+      if (sessionRun && window.KenyaReSession) window.KenyaReSession.set(id);
+      return sessionRun;
     } catch (e) {
       console.warn("Analysis: session load failed", e);
       return null;
     }
+  }
+
+  function sleep(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  async function waitForRun(id, meta) {
+    if (window.KenyaReSession) {
+      window.KenyaReSession.showAgg(meta || {});
+    }
+    const started = Date.now();
+    while (Date.now() - started < 90000) {
+      const fresh = window.KenyaReSession && window.KenyaReSession.getFreshRun(id);
+      if (fresh) {
+        const fromFresh = bundleToRun(id, fresh);
+        if (runHasOutput(fromFresh)) return fromFresh;
+      }
+      try {
+        const sessionRun = await fetchSessionRun(id);
+        if (runHasOutput(sessionRun)) return sessionRun;
+      } catch (_) {}
+      await sleep(700);
+    }
+    return null;
   }
 
   function gpsKind(exp) {
@@ -353,7 +457,15 @@
     if (ctx.pml250Ratio != null && ctx.pml250Ratio > 0.2) holds.push("PML 250y exceeds 20% of TIV");
     if (ctx.limit == null) holds.push("Policy limit not found");
 
-    if (ctx.hotspotName) conditions.push("Named drainage corridor — score already encodes terrain");
+    if (ctx.aiApplied) {
+      conditions.push(
+        "AI drainage upgrade on a blinded hotspot — " +
+          (ctx.aiHotspot || "named corridor") +
+          ". Hazard TIFF is unchanged."
+      );
+    } else if (ctx.hotspotName) {
+      conditions.push("Named corridor on file — check Finance for whether the TIFF was blinded");
+    }
     if (ctx.dedSrc === "class_default" || ctx.dedMinSrc === "class_default") {
       conditions.push("Deductible is a class default, not slip-stated");
     }
@@ -406,17 +518,166 @@
     setText("decision-why", decision.why);
     setText("risk-name", ctx.property || "Unnamed risk");
     setText("risk-ref", ctx.reference || "");
+    setText("session-id", ctx.sessionId ? "ID " + ctx.sessionId : "");
+    const back = document.getElementById("back-review");
+    if (back) back.setAttribute("href", reviewHref(ctx.sessionId));
   }
 
   function stormLabel(pt) {
-    const names = {
-      10: "Frequent",
-      25: "Severe",
-      50: "Moderate",
-      100: "Occasional",
-      250: "Rare / El Niño"
-    };
-    return names[pt.return_period] || pt.tier || "Storm";
+    return STORM_NAMES[pt.return_period] || pt.tier || "Storm";
+  }
+
+  function hasRealScores(ctx) {
+    if (!ctx || ctx.isSample || ctx.scoreSource === "sample") return false;
+    return (ctx.curve || []).some(function (p) {
+      return p.susceptibility_score != null;
+    });
+  }
+
+  function isDryCell(ctx) {
+    if (!hasRealScores(ctx)) return false;
+    return (ctx.curve || [])
+      .filter(function (p) {
+        return p.susceptibility_score != null;
+      })
+      .every(function (p) {
+        return p.susceptibility_score === 0;
+      });
+  }
+
+  function pointByRp(ctx) {
+    const map = {};
+    (ctx.curve || []).forEach(function (p) {
+      map[p.return_period] = Object.assign({}, p);
+    });
+    vulnDerived(ctx).forEach(function (p) {
+      map[p.return_period] = Object.assign({}, map[p.return_period] || {}, p);
+    });
+    exposureRows(ctx).forEach(function (p) {
+      map[p.return_period] = Object.assign({}, map[p.return_period] || {}, p);
+    });
+    return map;
+  }
+
+  function scorePill(label, value, tone, sub) {
+    return (
+      '<div class="score-pill score-pill-' +
+      (tone || "warm") +
+      '"><em>' +
+      escapeHtml(String(label)) +
+      "</em><strong>" +
+      value +
+      "</strong>" +
+      (sub ? "<span class='score-sub'>" + sub + "</span>" : "") +
+      "</div>"
+    );
+  }
+
+  function fillPills(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  function railCell(label, value, tone, sub) {
+    return (
+      '<div class="storm-cell storm-cell-' +
+      (tone || "warm") +
+      '"><em>' +
+      escapeHtml(String(label)) +
+      "</em><strong>" +
+      value +
+      "</strong>" +
+      (sub ? "<span>" + sub + "</span>" : "") +
+      "</div>"
+    );
+  }
+
+  function renderStormRail(ctx, step) {
+    if (!ctx) return;
+    const host = document.getElementById("storm-rail-cells");
+    const rail = document.getElementById("storm-rail");
+    if (!host) return;
+    const byRp = pointByRp(ctx);
+    const dry = isDryCell(ctx);
+    const scored = hasRealScores(ctx);
+    let kicker = "Susceptibility";
+    let note = "One score per storm at this pin.";
+    if (step === "vulnerability") {
+      kicker = "Depth and damage";
+      note = "Metres from the score, then the class damage ratio.";
+    } else if (step === "exposure") {
+      kicker = "Ground-up loss";
+      note = "TIV × damage ratio.";
+    } else if (step === "finance") {
+      kicker = "Net loss";
+      note = "After deductible and limit.";
+    }
+    if (step === "hazard" || step === "vulnerability") {
+      if (ctx.isSample) note = "Sample layout — no live scores on this pin.";
+      else if (dry) note = "This cell is dry on all five maps.";
+      else if (!scored) note = "Scores attach when the model has sampled this pin.";
+    } else if (dry && (step === "exposure" || step === "finance")) {
+      note = "Dry cell — losses stay at zero until a map is wet.";
+    }
+    setText("storm-rail-kicker", kicker);
+    setText("storm-rail-note", note);
+    if (rail) rail.setAttribute("data-state", dry ? "dry" : scored ? "wet" : "empty");
+
+    host.innerHTML = RAIL_RPS.map(function (rp) {
+      const pt = byRp[rp] || { return_period: rp };
+      const name = rp + "y · " + (STORM_NAMES[rp] || "");
+      if (step === "hazard") {
+        if (ctx.isSample) return railCell(name, "—", "empty");
+        const s = pt.susceptibility_score;
+        if (s == null) return railCell(name, "—", "empty");
+        return railCell(name, Number(s).toFixed(2), s === 0 ? "dry" : s >= 0.5 ? "hot" : "warm");
+      }
+      if (step === "vulnerability") {
+        if (ctx.isSample && pt.flood_depth_m == null && pt.damage_ratio != null) {
+          return railCell(name, Math.round(pt.damage_ratio * 100) + "%", "warm");
+        }
+        if (!scored && !ctx.isSample) return railCell(name, "—", "empty");
+        const d = pt.flood_depth_m != null ? pt.flood_depth_m.toFixed(2) + " m" : "—";
+        const dr = pt.damage_ratio != null ? Math.round(pt.damage_ratio * 100) + "%" : "";
+        const tone =
+          pt.damage_ratio != null && pt.damage_ratio >= 0.35 ? "hot" : pt.flood_depth_m === 0 ? "dry" : "warm";
+        return railCell(name, d, tone, dr);
+      }
+      if (step === "exposure") {
+        if (pt.ground_up_loss_kes == null) return railCell(name, "—", "empty");
+        return railCell(name, fmtKes(pt.ground_up_loss_kes), pt.ground_up_loss_kes === 0 ? "dry" : "warm");
+      }
+      if (pt.net_loss_kes == null) return railCell(name, "—", "empty");
+      return railCell(name, fmtKes(pt.net_loss_kes), pt.net_loss_kes === 0 ? "dry" : "warm");
+    }).join("");
+  }
+
+  function reviewHref(sessionId) {
+    if (window.KenyaReSession) return window.KenyaReSession.href("review.html");
+    return sessionId ? "review.html?id=" + encodeURIComponent(sessionId) : "review.html";
+  }
+
+  function exposureRows(ctx) {
+    const source = ctx.isSample ? ctx.curve || [] : vulnDerived(ctx);
+    return source
+      .map(function (pt) {
+        const dr = pt.damage_ratio;
+        const gu =
+          pt.ground_up_loss_kes != null
+            ? pt.ground_up_loss_kes
+            : ctx.tiv != null && dr != null
+              ? Math.round(ctx.tiv * dr)
+              : null;
+        return {
+          return_period: pt.return_period,
+          damage_ratio: dr,
+          ground_up_loss_kes: gu,
+          net_loss_kes: pt.net_loss_kes
+        };
+      })
+      .filter(function (pt) {
+        return pt.damage_ratio != null || pt.ground_up_loss_kes != null;
+      });
   }
 
   function renderHazard(ctx) {
@@ -428,67 +689,105 @@
     setText("haz-address", ctx.address || "Address not found");
     setText("haz-gps-kind", ctx.gps && ctx.gps.label ? ctx.gps.label : "");
 
-    const pills = document.getElementById("haz-score-pills");
-    const fakeSource = ctx.scoreSource === "sample" || ctx.isSample;
-    const scored = fakeSource
-      ? []
-      : ctx.curve.filter(function (pt) {
-          return pt.susceptibility_score != null;
-        });
-    const chartFrame = document.getElementById("hz-chart-wrap");
-    const chartEmpty = document.getElementById("hz-chart-empty");
-    if (chartFrame) chartFrame.classList.toggle("hidden", !scored.length);
-    if (chartEmpty) chartEmpty.classList.toggle("hidden", Boolean(scored.length));
-    if (pills) {
-      if (!scored.length) {
-        pills.innerHTML = '<p class="nf">Not found — waiting on backend TIFF scores for this pin.</p>';
+    const dry = isDryCell(ctx);
+    const scored = hasRealScores(ctx);
+    const byRp = pointByRp(ctx);
+    if (ctx.isSample) {
+      fillPills("haz-score-pills", '<p class="nf">Sample layout — no live scores on this pin.</p>');
+      setText("haz-drain-note", "This page will not invent TIFF scores.");
+    } else if (!scored) {
+      fillPills("haz-score-pills", '<p class="nf">Not found — waiting on scores for this pin.</p>');
+      setText("haz-drain-note", "Scores attach when the model has sampled this pin.");
+    } else {
+      fillPills(
+        "haz-score-pills",
+        RAIL_RPS.map(function (rp) {
+          const pt = byRp[rp] || {};
+          const s = pt.susceptibility_score;
+          const txt = s != null ? Number(s).toFixed(2) : "—";
+          const tone = s == null ? "empty" : s === 0 ? "dry" : s >= 0.5 ? "hot" : "warm";
+          return scorePill(rp + "y", txt, tone);
+        }).join("")
+      );
+      setText(
+        "haz-drain-note",
+        dry
+          ? "This cell is dry on all five maps."
+          : "TIFF cell value (0–1) at this pin. Zero means dry."
+      );
+    }
+    if (ctx.aiHotspot) {
+      setText(
+        "haz-blind-note",
+        "Nearest blinded corridor: " +
+          ctx.aiHotspot +
+          (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "") +
+          ". Hazard stays on the TIFF. Finance holds the AI upgrade."
+      );
+    } else {
+      setText("haz-blind-note", "");
+    }
+  }
+
+  function renderAiFinance(ctx) {
+    const panel = document.getElementById("ai-loss-panel");
+    if (panel) panel.setAttribute("data-applied", ctx.aiApplied ? "true" : "false");
+    const delta =
+      ctx.aiAalNet != null && ctx.aalNet != null ? ctx.aiAalNet - ctx.aalNet : ctx.aiAalNet != null ? ctx.aiAalNet : null;
+    setText("fin-base-aal", fmtKes(ctx.aalNet));
+    setText("fin-ai-aal", fmtKes(ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet));
+    setText(
+      "fin-ai-delta",
+      delta == null ? "not found" : (delta > 0 ? "+" : "") + fmtKes(delta)
+    );
+    setText("fin-ai-pml", fmtKes(ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100));
+    setText(
+      "ai-loss-lede",
+      ctx.aiApplied
+        ? "AI changed the loss. Hazard TIFF is untouched."
+        : "AI checked the blinded drainage corridors and left the loss equal to base."
+    );
+    setText(
+      "ai-hotspot-note",
+      ctx.aiHotspot
+        ? (ctx.aiApplied ? "Upgrade fired on " : "Nearest blinded corridor: ") +
+            ctx.aiHotspot +
+            (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "")
+        : "No blinded hotspot within the 2 km gate."
+    );
+    setText("ai-briefing", ctx.aiBriefing || "not found");
+    const tbody = document.querySelector("#ai-sources tbody");
+    if (tbody) {
+      if (!ctx.aiSources.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
       } else {
-        pills.innerHTML = ctx.curve
-          .map(function (pt) {
-            const s = pt.susceptibility_score;
-            const txt = s != null ? Number(s).toFixed(2) : "—";
-            const tone = s == null ? "empty" : s === 0 ? "dry" : s >= 0.5 ? "hot" : "warm";
+        tbody.innerHTML = ctx.aiSources
+          .map(function (src) {
+            const url = src.url || "";
+            const link = url
+              ? '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(url) + "</a>"
+              : "not found";
             return (
-              '<div class="score-pill score-pill-' +
-              tone +
-              '"><em>' +
-              pt.return_period +
-              "y</em><strong>" +
-              txt +
-              "</strong></div>"
+              "<tr><td>" +
+              escapeHtml(src.title || src.id || "Source") +
+              "</td><td>" +
+              escapeHtml(src.what || "") +
+              "</td><td>" +
+              link +
+              "</td></tr>"
             );
           })
           .join("");
       }
     }
-    const km = ctx.scoreKm != null ? "Sampled " + ctx.scoreKm.toFixed(2) + " km from the pin. " : "";
-    setText(
-      "haz-drain-note",
-      scored.length
-        ? km + "TIFF cell value (0–1) from the backend. Not invented on this page."
-        : "No real TIFF scores on this run. Backend will attach them — this page will not invent them."
-    );
-
-    const tbody = document.querySelector("#hz-table tbody");
-    if (tbody) {
-      if (!ctx.curve.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
+    const list = document.getElementById("ai-assumptions");
+    if (list) {
+      if (!ctx.aiAssumptions.length) {
+        list.innerHTML = "<li>not found</li>";
       } else {
-        tbody.innerHTML = ctx.curve
-          .map(function (pt) {
-            const score =
-              pt.susceptibility_score != null
-                ? Number(pt.susceptibility_score).toFixed(2)
-                : "not found";
-            return (
-              "<tr><td>" +
-              stormLabel(pt) +
-              "</td><td>" +
-              pt.return_period +
-              "y</td><td>" +
-              score +
-              "</td></tr>"
-            );
+        list.innerHTML = ctx.aiAssumptions
+          .map(function (line) {
+            return "<li>" + escapeHtml(line) + "</li>";
           })
           .join("");
       }
@@ -497,90 +796,63 @@
 
   function renderVulnerability(ctx) {
     lastVuln = { classKey: ctx.classKey, rows: vulnDerived(ctx) };
-    const rows = lastVuln.rows;
-    const inPills = document.getElementById("vuln-score-pills");
-    const outPills = document.getElementById("vuln-out-pills");
+    const rows = ctx.isSample
+      ? (ctx.curve || []).map(function (p) {
+          return {
+            return_period: p.return_period,
+            susceptibility_score: null,
+            h_max_m: hMaxFor(p.return_period),
+            flood_depth_m: p.flood_depth_m,
+            damage_ratio: p.damage_ratio
+          };
+        })
+      : lastVuln.rows;
 
-    if (inPills) {
-      if (!rows.length) {
-        inPills.innerHTML = '<p class="nf">Not found — Hazard has not sent real TIFF scores yet.</p>';
-      } else {
-        inPills.innerHTML = rows
+    const scored = hasRealScores(ctx);
+    if (!rows.length && !ctx.isSample) {
+      fillPills("vuln-score-pills", '<p class="nf">Waiting on Hazard scores.</p>');
+      fillPills("vuln-out-pills", '<p class="nf">No depths until scores arrive.</p>');
+      setText("vuln-in-note", "The five scores from Hazard, at this pin.");
+      setText("vuln-out-note", "Outputs stay empty until Hazard has real scores.");
+    } else {
+      fillPills(
+        "vuln-score-pills",
+        (scored ? lastVuln.rows : rows)
           .map(function (pt) {
             const s = pt.susceptibility_score;
+            const txt = s != null ? Number(s).toFixed(2) : "—";
             const tone = s == null ? "empty" : s === 0 ? "dry" : s >= 0.5 ? "hot" : "warm";
-            return (
-              '<div class="score-pill score-pill-' +
-              tone +
-              '"><em>' +
-              pt.return_period +
-              "y</em><strong>" +
-              Number(s).toFixed(2) +
-              "</strong></div>"
-            );
+            return scorePill(pt.return_period + "y", txt, tone);
           })
-          .join("");
-      }
-    }
-    setText(
-      "vuln-in-note",
-      rows.length
-        ? "Same five scores as Hazard. This step does not look up the TIFF again."
-        : "Waiting on backend TIFF scores. This page will not invent them."
-    );
-
-    if (outPills) {
-      if (!rows.length) {
-        outPills.innerHTML = '<p class="nf">No depths or damage ratios until scores arrive.</p>';
-      } else {
-        outPills.innerHTML = rows
+          .join("") || '<p class="nf">Waiting on Hazard scores.</p>'
+      );
+      fillPills(
+        "vuln-out-pills",
+        rows
           .map(function (pt) {
             const d = pt.flood_depth_m != null ? pt.flood_depth_m.toFixed(2) + " m" : "—";
             const dr = pt.damage_ratio != null ? Math.round(pt.damage_ratio * 100) + "%" : "—";
-            const tone = pt.damage_ratio != null && pt.damage_ratio >= 0.35 ? "hot" : "warm";
-            return (
-              '<div class="score-pill score-pill-' +
-              tone +
-              '"><em>' +
-              pt.return_period +
-              "y</em><strong>" +
-              d +
-              "</strong><span class='score-sub'>" +
-              dr +
-              "</span></div>"
-            );
+            const tone = pt.damage_ratio != null && pt.damage_ratio >= 0.35 ? "hot" : pt.flood_depth_m === 0 ? "dry" : "warm";
+            return scorePill(pt.return_period + "y", d, tone, dr);
           })
-          .join("");
-      }
+          .join("")
+      );
+      setText("vuln-in-note", "The five scores from Hazard, at this pin.");
+      setText("vuln-out-note", "Metres from the score, then the class damage ratio.");
     }
-    setText(
-      "vuln-out-note",
-      rows.length
-        ? "depth = Hmax × score, then JRC damage ratio for this class."
-        : "Outputs stay empty until Hazard has real scores."
-    );
 
     const classNote = document.getElementById("vuln-class-note");
     if (classNote) {
       const curve = VULN_CURVES[ctx.classKey] || VULN_CURVES.concrete_rcc;
-      const label = ctx.classLabel || "class not found (RCC used as the function shape only)";
-      classNote.textContent =
-        "This risk: " +
-        label +
-        ". Ceiling K=" +
-        curve.K +
-        ", midpoint S0=" +
-        curve.S0 +
-        " m, steepness k=" +
-        curve.k +
-        ".";
+      const label = ctx.classLabel || "class not found (RCC shape only)";
+      classNote.textContent = label + ". K=" + curve.K + ", S0=" + curve.S0 + " m, k=" + curve.k + ".";
     }
 
     const cap = document.getElementById("vuln-caption");
     if (cap) {
-      cap.textContent = rows.length
+      cap.textContent = lastVuln.rows.length
         ? "Crimson line is the JRC function. Dots are this pin after score → depth."
-        : "Crimson line is the JRC function for the class. No site dots until TIFF scores exist.";
+        : "Crimson line is the JRC function for the class. No site dots until scores exist.";
     }
 
     const tbody = document.querySelector("#vuln-table tbody");
@@ -592,9 +864,11 @@
           .map(function (pt) {
             return (
               "<tr><td>" +
+              stormLabel(pt) +
+              " · " +
               pt.return_period +
               "y</td><td>" +
-              Number(pt.susceptibility_score).toFixed(2) +
+              (pt.susceptibility_score != null ? Number(pt.susceptibility_score).toFixed(2) : "—") +
               "</td><td>" +
               (pt.h_max_m != null ? pt.h_max_m.toFixed(2) + " m" : "—") +
               "</td><td>" +
@@ -605,6 +879,22 @@
             );
           })
           .join("");
+      }
+    }
+
+    const chip = document.getElementById("wet-chip");
+    if (chip) {
+      if (ctx.floors != null && ctx.floors > 1) {
+        chip.textContent =
+          ctx.floors +
+          " floors" +
+          (ctx.basements ? " · " + ctx.basements + " basement" : "") +
+          (ctx.plant ? " · critical plant" : "") +
+          " — damage on the ground plate, not the tower TIV.";
+      } else if (ctx.floors === 1) {
+        chip.textContent = "Single storey — damage applies to full TIV.";
+      } else {
+        chip.textContent = "";
       }
     }
 
@@ -652,7 +942,7 @@
           b +
           "</span>" +
           (plant
-            ? '<span class="badge" style="background:var(--brand-soft);color:var(--brand)">Critical plant</span>'
+            ? '<span class="building-note">Critical plant</span>'
             : '<span class="building-note">Below grade</span>') +
           '</div><span class="building-wall"></span></div>';
       }
@@ -665,178 +955,118 @@
       (basements ? '<span class="building-ruler-sub">B' + basements + "</span>" : "") +
       "</div></div>";
     host.innerHTML = html;
-
-    const cap = document.getElementById("stack-caption");
-    if (cap) {
-      const plate =
-        ctx.floors > 1
-          ? "Wet-storey split: the model should damage the ground plate" +
-            (ctx.plant ? " and basement plant" : "") +
-            " — not the full tower TIV."
-          : "Single storey: damage applies to full TIV.";
-      cap.textContent = plate + " Upper floors stay dry.";
-    }
   }
 
   function renderExposure(ctx) {
-    const gpsTxt =
-      ctx.lat != null && ctx.lon != null
-        ? ctx.lat.toFixed(4) + ", " + ctx.lon.toFixed(4)
-        : "not found";
-    setText("exp-gps", gpsTxt);
-    setText("exp-address", ctx.address || "Address not found");
-    const status = document.getElementById("exp-gps-status");
-    if (status) {
-      status.textContent = ctx.gps.label;
-      status.setAttribute("data-kind", ctx.gps.kind);
-    }
-    setHtml("exp-gps-source", badge(ctx.gps.source));
-
+    const rows = exposureRows(ctx);
     setText("exp-tiv", fmtKesFull(ctx.tiv));
-    setHtml("exp-tiv-src", badge(ctx.tivSrc));
-    setText("exp-class", ctx.classLabel || "not found");
-    setHtml("exp-class-src", badge(ctx.classSrc));
-    setText("exp-gfa", ctx.gfa != null ? ctx.gfa.toLocaleString("en-KE") + " m²" : "not found");
-    setHtml("exp-gfa-src", badge(ctx.gfaSrc));
-
-    if (ctx.floors == null && ctx.basements == null) {
-      setText("exp-floors", "not found");
-    } else {
-      const fl = ctx.floors == null ? "floors not found" : ctx.floors + " above grade";
-      const bs = ctx.basements == null ? "basements not found" : ctx.basements + " basement";
-      setText("exp-floors", fl + " · " + bs);
-    }
+    const bits = [];
+    if (ctx.classLabel) bits.push(ctx.classLabel);
+    if (ctx.floors != null) bits.push(ctx.floors + " floors");
+    if (ctx.basements) bits.push(ctx.basements + " basement");
+    if (ctx.plant) bits.push("critical plant");
+    setText("exp-chip", bits.join(" · "));
     setText(
-      "exp-plant",
-      ctx.plant == null ? "" : ctx.plant ? "Critical plant in basement" : "No basement plant flagged"
+      "exp-in-note",
+      ctx.tiv != null ? "TIV from the slip. Damage ratios from Vulnerability." : "TIV is not on the slip."
     );
-
-    const coverBits = [];
-    if (ctx.coverSubject) coverBits.push(ctx.coverSubject);
-    if (ctx.coverType) coverBits.push(ctx.coverType);
-    setText("exp-cover", coverBits.length ? coverBits.join(" · ") : "not found");
-    setHtml("exp-cover-src", badge(ctx.coverSrc));
-    setText("exp-occ", ctx.occupancy || "not found");
-
-    renderMap(ctx);
-  }
-
-  let analysisMap = null;
-  let analysisMarker = null;
-
-  function renderMap(ctx) {
-    const el = document.getElementById("exposure-map");
-    if (!el) return;
-    if (ctx.lat == null || ctx.lon == null) {
-      if (analysisMap) {
-        analysisMap.remove();
-        analysisMap = null;
-        analysisMarker = null;
-      }
-      el.innerHTML = '<p class="map-empty">GPS not found — pin on Review</p>';
-      return;
-    }
-    if (typeof L === "undefined") {
-      el.innerHTML = '<p class="map-empty">' + ctx.lat.toFixed(4) + ", " + ctx.lon.toFixed(4) + "</p>";
-      return;
-    }
-    if (!analysisMap) {
-      el.innerHTML = "";
-      analysisMap = L.map(el, {
-        zoomControl: false,
-        attributionControl: false,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false
-      }).setView([ctx.lat, ctx.lon], 14);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(analysisMap);
-      analysisMarker = L.circleMarker([ctx.lat, ctx.lon], {
-        radius: 8,
-        color: "#d11242",
-        fillColor: "#d11242",
-        fillOpacity: 0.9,
-        weight: 2
-      }).addTo(analysisMap);
+    if (!rows.length) {
+      fillPills("exp-dr-pills", '<p class="nf">Damage ratios arrive after Vulnerability.</p>');
+      fillPills("exp-loss-pills", '<p class="nf">No ground-up until TIV and a damage ratio exist.</p>');
+      setText("exp-out-note", "loss = TIV × damage ratio.");
     } else {
-      analysisMap.setView([ctx.lat, ctx.lon], 14);
-      analysisMarker.setLatLng([ctx.lat, ctx.lon]);
+      fillPills(
+        "exp-dr-pills",
+        rows
+          .map(function (pt) {
+            const dr = pt.damage_ratio != null ? Math.round(pt.damage_ratio * 100) + "%" : "—";
+            const tone = pt.damage_ratio == null ? "empty" : pt.damage_ratio >= 0.35 ? "hot" : "warm";
+            return scorePill(pt.return_period + "y", dr, tone);
+          })
+          .join("")
+      );
+      fillPills(
+        "exp-loss-pills",
+        rows
+          .map(function (pt) {
+            return scorePill(
+              pt.return_period + "y",
+              fmtKes(pt.ground_up_loss_kes),
+              pt.ground_up_loss_kes === 0 ? "dry" : "warm"
+            );
+          })
+          .join("")
+      );
+      setText("exp-out-note", "loss = TIV × damage ratio.");
     }
-    setTimeout(function () {
-      if (analysisMap) analysisMap.invalidateSize();
-    }, 60);
-  }
-
-  function ledgerRow(label, valueHtml, note) {
-    return (
-      '<div class="ledger-row">' +
-      "<div><dt>" +
-      label +
-      "</dt>" +
-      (note ? '<p class="ledger-note">' + note + "</p>" : "") +
-      "</div><dd>" +
-      valueHtml +
-      "</dd></div>"
-    );
+    const tbody = document.querySelector("#exp-table tbody");
+    if (tbody) {
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
+      } else {
+        tbody.innerHTML = rows
+          .map(function (pt) {
+            return (
+              "<tr><td>" +
+              stormLabel(pt) +
+              " · " +
+              pt.return_period +
+              "y</td><td>" +
+              (pt.damage_ratio != null ? (pt.damage_ratio * 100).toFixed(1) + "%" : "—") +
+              "</td><td>" +
+              fmtKes(pt.ground_up_loss_kes) +
+              "</td></tr>"
+            );
+          })
+          .join("");
+      }
+    }
   }
 
   function renderFinance(ctx) {
-    setText("fin-premium", fmtKes(ctx.aalNet));
+    const rows = exposureRows(ctx);
+    const guCount = rows.filter(function (r) {
+      return r.ground_up_loss_kes != null;
+    }).length;
     setText(
-      "fin-premium-note",
-      ctx.aalNet != null
-        ? "Trapezoidal integral of the net EP points. Expense and profit load are not applied."
-        : "Run the model to price a pure premium."
+      "fin-in-aal",
+      ctx.aalGu != null ? fmtKes(ctx.aalGu) + " ground-up AAL" : guCount ? guCount + " scenario losses" : "not found"
     );
-
-    const rolNote =
-      ctx.tiv != null && ctx.aalNet != null
-        ? "Net AAL ÷ TIV (model). ROL on limit " +
-          (ctx.limit != null && ctx.limit > 0 ? fmtPct((ctx.aalNet / ctx.limit) * 100) : "not found")
-        : "";
-
-    const dedTxt = (function () {
-      if (ctx.dedPct == null && ctx.dedMin == null) return nf("not found");
-      const pct = ctx.dedPct == null ? "not found" : (ctx.dedPct <= 1 ? ctx.dedPct * 100 : ctx.dedPct).toFixed(1) + "%";
-      const min = ctx.dedMin == null ? "min not found" : fmtKes(ctx.dedMin) + " min";
-      return escapeHtml(pct + " / " + min);
-    })();
-
-    const shareHtml =
-      ctx.share == null ? nf("not found") : escapeHtml(fmtPct(ctx.share <= 1 ? ctx.share * 100 : ctx.share, 1));
-
-    const tvarHtml = ctx.tvar100 && ctx.tvar100.value != null ? escapeHtml(fmtKes(ctx.tvar100.value)) : nf("not found");
-
-    const host = document.getElementById("finance-ledger");
+    const dedPct =
+      ctx.dedPct == null ? "deductible not found" : (ctx.dedPct <= 1 ? ctx.dedPct * 100 : ctx.dedPct).toFixed(1) + "%";
+    const dedMin = ctx.dedMin == null ? "min not found" : fmtKes(ctx.dedMin) + " min";
+    const lim = ctx.limit == null ? "limit not found" : fmtKes(ctx.limit);
+    setText("fin-in-note", "Ground-up from Exposure. " + dedPct + " / " + dedMin + " · " + lim + ".");
+    const underwriteAal = ctx.aiApplied && ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet;
+    const underwritePml = ctx.aiApplied && ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100;
+    setText(
+      "fin-out-note",
+      ctx.aiApplied
+        ? "Underwriting number is the AI-upgraded net. Base TIFF loss is beside it."
+        : ctx.hasModel
+          ? "Net of deductible and limit. AI equals base on this pin."
+          : "Waiting on model output."
+    );
+    setText("fin-aal", fmtKes(underwriteAal));
+    setText("fin-pml", fmtKes(underwritePml));
+    renderAiFinance(ctx);
+    const host = document.getElementById("fin-terms");
     if (host) {
-      host.innerHTML = [
-        ledgerRow("Rate on line", ctx.rol == null ? nf("not found") : escapeHtml(fmtPct(ctx.rol)), rolNote),
-        ledgerRow("AAL · ground-up", ctx.aalGu == null ? nf("not found") : escapeHtml(fmtKes(ctx.aalGu)), "Before deductible"),
-        ledgerRow("AAL · net", ctx.aalNet == null ? nf("not found") : escapeHtml(fmtKes(ctx.aalNet)), "After deductible & limit"),
-        ledgerRow("PML @ 100-year", ctx.pml100 == null ? nf("not found") : escapeHtml(fmtKes(ctx.pml100)), "1% AEP · net"),
-        ledgerRow("PML @ 250-year", ctx.pml250 == null ? nf("not found") : escapeHtml(fmtKes(ctx.pml250)), "0.4% AEP · net"),
-        ledgerRow("TVaR @ 100-year", tvarHtml, ctx.tvar100 ? ctx.tvar100.note : "not found"),
-        ledgerRow(
-          "Deductible",
-          dedTxt,
-          (ctx.dedSrc ? badge(ctx.dedSrc) : "") +
-            (ctx.dedMinSrc && ctx.dedMinSrc !== ctx.dedSrc ? " " + badge(ctx.dedMinSrc) : "")
-        ),
-        ledgerRow("Policy limit", ctx.limit == null ? nf("not found") : escapeHtml(fmtKes(ctx.limit)), badge(ctx.limitSrc)),
-        ledgerRow("Share", shareHtml, "Quota share is optional on this facultative slip")
-      ].join("");
-    }
-
-    const ratio = ctx.limit != null && ctx.limit > 0 && ctx.pml250 != null ? ctx.pml250 / ctx.limit : null;
-    const bar = document.getElementById("limit-consume-bar");
-    const pctEl = document.getElementById("limit-consume-pct");
-    const note = document.getElementById("limit-consume-note");
-    if (pctEl) pctEl.textContent = ratio == null ? "not found" : (ratio * 100).toFixed(1) + "%";
-    if (bar) bar.style.width = ratio == null ? "0%" : Math.min(100, Math.max(2, ratio * 100)) + "%";
-    if (note) {
-      note.textContent =
-        ratio == null
-          ? "Need both 250-year net loss and a policy limit."
-          : fmtKes(ctx.pml250) + " of " + fmtKes(ctx.limit) + " limit at the 250-year point.";
+      const ded =
+        ctx.dedPct == null && ctx.dedMin == null
+          ? "not found"
+          : (ctx.dedPct == null ? "" : (ctx.dedPct <= 1 ? ctx.dedPct * 100 : ctx.dedPct).toFixed(1) + "%") +
+            (ctx.dedMin == null ? "" : (ctx.dedPct == null ? "" : " / ") + fmtKes(ctx.dedMin) + " min");
+      const lim = ctx.limit == null ? "not found" : fmtKes(ctx.limit);
+      const share = ctx.share == null ? "not found" : fmtPct(ctx.share <= 1 ? ctx.share * 100 : ctx.share, 1);
+      host.innerHTML =
+        "<div><dt>Deductible</dt><dd>" +
+        escapeHtml(ded) +
+        "</dd></div><div><dt>Policy limit</dt><dd>" +
+        escapeHtml(lim) +
+        "</dd></div><div><dt>Share</dt><dd>" +
+        escapeHtml(share) +
+        "</dd></div>";
     }
   }
 
@@ -860,55 +1090,7 @@
     return nice * exp;
   }
 
-  function drawHazardDepths(canvas, curve) {
-    const sized = sizeCanvas(canvas);
-    const ctx = sized.ctx;
-    const w = sized.w;
-    const h = sized.h;
-    ctx.clearRect(0, 0, w, h);
-    const scored = (curve || []).filter(function (p) {
-      return p.susceptibility_score != null;
-    });
-    if (!scored.length) return;
-
-    const pad = { t: 16, r: 10, b: 28, l: 36 };
-    const innerW = w - pad.l - pad.r;
-    const innerH = h - pad.t - pad.b;
-    const maxD = 1;
-    const gap = 8;
-    const barW = Math.max(10, (innerW - gap * (scored.length - 1)) / scored.length);
-
-    ctx.strokeStyle = "#c8d4e0";
-    ctx.lineWidth = 1;
-    ctx.fillStyle = "#5c6b7a";
-    ctx.font = "10px IBM Plex Sans, system-ui, sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (let i = 0; i <= 2; i++) {
-      const v = (maxD * i) / 2;
-      const y = pad.t + innerH - (v / maxD) * innerH;
-      ctx.beginPath();
-      ctx.moveTo(pad.l, y);
-      ctx.lineTo(w - pad.r, y);
-      ctx.stroke();
-      ctx.fillText(v.toFixed(1), pad.l - 6, y);
-    }
-
-    scored.forEach(function (p, i) {
-      const d = p.susceptibility_score;
-      const bh = (d / maxD) * innerH;
-      const x = pad.l + i * (barW + gap);
-      const y = pad.t + innerH - bh;
-      ctx.fillStyle = i === scored.length - 1 ? "#d11242" : "#00274c";
-      ctx.fillRect(x, y, barW, Math.max(2, bh));
-      ctx.fillStyle = "#5c6b7a";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(p.return_period + "y", x + barW / 2, h - pad.b + 6);
-    });
-  }
-
-  function drawEpCurve(canvas, curve) {
+  function drawEpCurve(canvas, curve, aiCurve) {
     const sized = sizeCanvas(canvas);
     const ctx = sized.ctx;
     const w = sized.w;
@@ -924,10 +1106,11 @@
     });
     const minRp = Math.min.apply(null, rps);
     const maxRp = Math.max.apply(null, rps);
+    const series = curve.concat(Array.isArray(aiCurve) ? aiCurve : []);
     const maxLoss = niceMax(
       Math.max.apply(
         null,
-        curve.map(function (p) {
+        series.map(function (p) {
           return Math.max(p.ground_up_loss_kes || 0, p.net_loss_kes || 0);
         })
       )
@@ -984,6 +1167,28 @@
 
     strokeSeries("ground_up_loss_kes", "#00274c", [5, 4]);
     strokeSeries("net_loss_kes", "#d11242");
+    if (aiCurve && aiCurve.length) {
+      ctx.beginPath();
+      ctx.setLineDash([2, 4]);
+      ctx.strokeStyle = "#7c5cbf";
+      ctx.lineWidth = 2.2;
+      aiCurve.forEach(function (p, i) {
+        const x = xOf(p.return_period);
+        const y = yOf(p.net_loss_kes || 0);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      aiCurve.forEach(function (p) {
+        const x = xOf(p.return_period);
+        const y = yOf(p.net_loss_kes || 0);
+        ctx.fillStyle = "#7c5cbf";
+        ctx.beginPath();
+        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
 
     curve.forEach(function (p) {
       const x = xOf(p.return_period);
@@ -1108,6 +1313,9 @@
     const lat = pick(exp, "coordinates.lat");
     const lon = pick(exp, "coordinates.lon");
     const elev = pick(exp, "coordinates.elevation_m");
+    const outCoords = res.property && res.property.coordinates ? res.property.coordinates : null;
+    if (outCoords && outCoords.lat != null) lat.value = outCoords.lat;
+    if (outCoords && outCoords.lon != null) lon.value = outCoords.lon;
     const klass = pick(exp, "exposure.housing_class");
     const floors = pick(exp, "exposure.floors_above_ground");
     const basements = pick(exp, "exposure.basement_floors");
@@ -1128,10 +1336,15 @@
       (exp.audit && exp.audit.geocode_suggestion && exp.audit.geocode_suggestion.label) ||
       null;
 
+    const ai = res.ai_upgrade || {};
+    const aiMetrics = res.ai_metrics || {};
+    const aiCurve = normalizeCurve(res.ai_ep_curve || res.aiEpCurve);
     const aalNet = num(metrics.aal_net_kes);
     const aalGu = num(metrics.aal_ground_up_kes);
     const pml100 = num(metrics.pml_100y_kes);
     const pml250 = num(metrics.pml_250y_kes);
+    const aiAalNet = num(aiMetrics.aal_net_kes);
+    const aiPml100 = num(aiMetrics.pml_100y_kes);
     const tivN = num(tiv.value);
     const limitN = num(limit.value);
     const rol = num(metrics.rate_on_line_pct);
@@ -1173,6 +1386,16 @@
       aalGu: aalGu,
       pml100: pml100,
       pml250: pml250,
+      aiApplied: Boolean(ai.applied),
+      aiReason: ai.reason || null,
+      aiHotspot: (ai.nearest_blinded && ai.nearest_blinded.name) || null,
+      aiDistanceKm: ai.nearest_blinded && ai.nearest_blinded.distance_km,
+      aiBriefing: ai.briefing || null,
+      aiSources: Array.isArray(ai.sources) ? ai.sources : [],
+      aiAssumptions: Array.isArray(ai.assumptions) ? ai.assumptions : [],
+      aiAalNet: aiAalNet,
+      aiPml100: aiPml100,
+      aiCurve: aiCurve,
       rol: rol,
       tvar100: constructedTvar(curve, 0.01),
       pml250Ratio: tivN && pml250 != null ? pml250 / tivN : null,
@@ -1182,12 +1405,15 @@
       scoreKm: res.hazard_summary && res.hazard_summary.score_distance_km,
       curve: curve,
       hasModel: Boolean(res.metrics || curve.length),
-      isSample: Boolean(run.raw && run.raw.sample)
+      isSample: Boolean(run.raw && run.raw.sample),
+      sessionId: (run.raw && run.raw.id) || (window.KenyaReSession && window.KenyaReSession.get()) || null
     };
   }
 
   let lastCurve = [];
+  let lastAiCurve = [];
   let lastVuln = { classKey: null, rows: [] };
+  let lastCtx = null;
 
   const STEPS = [
     { id: "hazard", title: "Hazard", nextLabel: "Next · Vulnerability" },
@@ -1215,10 +1441,11 @@
     if (title) title.textContent = "Analysis";
     const prev = document.getElementById("step-prev");
     const next = document.getElementById("step-next");
+    const backToReview = reviewHref();
     if (prev) {
       if (idx <= 0) {
         prev.textContent = "Review";
-        prev.setAttribute("href", "review.html");
+        prev.setAttribute("href", backToReview);
       } else {
         prev.textContent = "Previous";
         prev.setAttribute("href", "#" + STEPS[idx - 1].id);
@@ -1227,16 +1454,16 @@
     if (next) {
       if (idx >= STEPS.length - 1) {
         next.textContent = "Review";
-        next.setAttribute("href", "review.html");
+        next.setAttribute("href", backToReview);
       } else {
         next.textContent = "Next";
         next.setAttribute("href", "#" + STEPS[idx + 1].id);
       }
     }
+    if (lastCtx) renderStormRail(lastCtx, step.id);
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         drawAll(lastCurve);
-        if (step.id === "exposure" && analysisMap) analysisMap.invalidateSize();
       });
     });
   }
@@ -1247,29 +1474,70 @@
     return !host || !host.classList.contains("hidden");
   }
 
-  function drawAll(curve) {
+  function drawAll(curve, aiCurve) {
     if (curve) lastCurve = curve;
-    const hz = document.getElementById("hz-chart");
+    if (aiCurve) lastAiCurve = aiCurve;
     const ep = document.getElementById("ep-chart");
     const dd = document.getElementById("dd-chart");
-    if (hz && stepIsVisible(hz)) drawHazardDepths(hz, lastCurve);
-    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve);
-    if (dd && stepIsVisible(dd)) drawDepthDamage(dd);
+    const fold = document.getElementById("dd-fold");
+    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve, lastAiCurve);
+    if (dd && stepIsVisible(dd) && (!fold || fold.open)) drawDepthDamage(dd);
+  }
+
+  function bindFolds() {
+    const fold = document.getElementById("dd-fold");
+    if (fold && !fold.dataset.bound) {
+      fold.dataset.bound = "1";
+      fold.addEventListener("toggle", function () {
+        if (fold.open) drawAll(lastCurve);
+      });
+    }
   }
 
   async function render() {
-    const run = await loadRun();
     const empty = document.getElementById("analysis-empty");
     const page = document.getElementById("analysis-page");
-    if (!run) {
+    const q = new URLSearchParams(location.search);
+    const sid = (window.KenyaReSession && window.KenyaReSession.get()) || q.get("id");
+    const waiting = q.get("fresh") === "1" || Boolean(window.KenyaReSession && window.KenyaReSession.getPending());
+
+    if (waiting) {
+      if (empty) empty.classList.add("hidden");
+      if (page) page.classList.add("hidden");
+    }
+
+    let run = await loadRun();
+    if (!runHasOutput(run) && waiting && sid) {
+      run = await waitForRun(sid, {
+        property: (run && run.exposure && (unwrap(run.exposure.property_name).value || run.exposure.property_name)) || null
+      });
+    }
+    if (window.KenyaReSession) {
+      window.KenyaReSession.hideAgg();
+      if (runHasOutput(run)) {
+        window.KenyaReSession.clearPending();
+        window.KenyaReSession.clearFreshRun();
+      }
+    }
+
+    if (!runHasOutput(run)) {
       if (empty) empty.classList.remove("hidden");
       if (page) page.classList.add("hidden");
+      if (sid) {
+        const heading = empty && empty.querySelector("p.text-sm.font-medium");
+        if (heading) heading.textContent = "Session " + sid + " has no stored run yet";
+        empty.querySelectorAll('a[href="review.html"]').forEach(function (a) {
+          a.setAttribute("href", reviewHref(sid));
+        });
+      }
       return;
     }
     if (empty) empty.classList.add("hidden");
     if (page) page.classList.remove("hidden");
 
     const ctx = buildContext(run);
+    lastCtx = ctx;
+    bindFolds();
     const banner = document.getElementById("sample-banner");
     if (banner) banner.classList.toggle("hidden", !ctx.isSample);
     const decision = decide(ctx);
@@ -1279,6 +1547,7 @@
     renderExposure(ctx);
     renderFinance(ctx);
     lastCurve = ctx.curve || [];
+    lastAiCurve = ctx.aiCurve || [];
     if (!location.hash || location.hash === "#") {
       history.replaceState(null, "", location.pathname + location.search + "#hazard");
     }
@@ -1291,7 +1560,6 @@
 
   window.addEventListener("resize", function () {
     drawAll(lastCurve);
-    if (analysisMap) analysisMap.invalidateSize();
   });
 
   render();

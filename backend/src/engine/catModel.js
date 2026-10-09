@@ -155,40 +155,16 @@ function financialLoss(groundUp, terms) {
   };
 }
 
-async function runCatModelAsync(exposureRecord) {
-  const record = exposureRecord || {};
-  const lat = number(record.coordinates && record.coordinates.lat);
-  const lon = number(record.coordinates && record.coordinates.lon);
-  const housingClass = valueOf(record.exposure && record.exposure.housing_class);
-  const tiv = number(record.exposure && record.exposure.tiv_kes);
-  const gfa = number(record.exposure && record.exposure.floor_area_m2);
-  const floors = number(record.exposure && record.exposure.floors_above_ground);
-  const basements = number(record.exposure && record.exposure.basement_floors) || 0;
-  const plant = Boolean(valueOf(record.exposure && record.exposure.critical_plant_in_basement));
-  const terms = record.financial_terms || {};
-  const damageConfig = record.model_config && record.model_config.damage_function;
-  const warnings = [];
-  const errors = [];
-  const audit = record.audit || {};
-  if (audit.is_blocked === true) {
-    errors.push({ code: "AUDIT_BLOCKED", message: "Model execution is blocked by intake audit controls." });
-  }
-  if (lat == null || lon == null) errors.push({ code: "MISSING_COORDINATES", message: "Latitude and longitude are required." });
-  else if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-    errors.push({ code: "INVALID_COORDINATES", message: "Latitude must be between -90 and 90 and longitude between -180 and 180." });
-  }
-  if (tiv == null || tiv <= 0) errors.push({ code: "MISSING_TIV", message: "A positive total insured value is required; no default was applied." });
-  if (!housingClass || !VULNERABILITY_CURVES[housingClass]) warnings.push({ code: "PROVISIONAL_CURVE", message: "A provisional RCC vulnerability curve was used because construction class is missing or unknown." });
-  if (gfa == null) warnings.push({ code: "MISSING_GFA", message: "Floor area is unavailable; losses use the declared TIV without a wet-storey split." });
-  const hazard = await evaluateHazardRaster(lat, lon);
-  if (hazard.status !== "ok") errors.push({ code: `HAZARD_${hazard.status.toUpperCase()}`, message: "One or more configured hazard rasters could not provide a sample." });
-  hazard.scenarios.forEach((scenario) => {
-    if (scenario.status === "invalid_source_value") {
-      warnings.push({ code: "INVALID_SUSCEPTIBILITY", tier: scenario.tier, message: "Raster source value is outside the required 0–1 range; it was not clamped." });
-    }
-  });
-
-  const scenarios = hazard.scenarios.map((scenario) => {
+function priceScenarios(hazardScenarios, inputs) {
+  const housingClass = inputs.housingClass;
+  const tiv = inputs.tiv;
+  const gfa = inputs.gfa;
+  const floors = inputs.floors;
+  const basements = inputs.basements || 0;
+  const plant = Boolean(inputs.plant);
+  const terms = inputs.terms || {};
+  const damageConfig = inputs.damageConfig;
+  return (hazardScenarios || []).map((scenario) => {
     if (scenario.flood_depth_m == null || tiv == null) {
       return {
         ...scenario,
@@ -233,11 +209,70 @@ async function runCatModelAsync(exposureRecord) {
       ...financial
     };
   });
-  const valid = scenarios.filter((s) => s.ground_up_loss_kes != null);
+}
+
+function summarizeMetrics(scenarios, tiv) {
+  const valid = (scenarios || []).filter((s) => s.ground_up_loss_kes != null);
   const aal = valid.length > 1 ? valid.slice(1).reduce((sum, s, i) => sum + Math.abs(valid[i].aep - s.aep) * ((valid[i].ground_up_loss_kes + s.ground_up_loss_kes) / 2), 0) : null;
   const netValid = valid.filter((s) => s.net_loss_kes != null);
   const aalNet = netValid.length > 1 ? netValid.slice(1).reduce((sum, s, i) => sum + Math.abs(netValid[i].aep - s.aep) * ((netValid[i].net_loss_kes + s.net_loss_kes) / 2), 0) : null;
-  const byTier = Object.fromEntries(scenarios.map((s) => [s.tier, s.ground_up_loss_kes]));
+  const byTier = Object.fromEntries((scenarios || []).map((s) => [s.tier, s.ground_up_loss_kes]));
+  return {
+    byTier,
+    per_tier: (scenarios || []).map((s) => ({
+      tier: s.tier,
+      return_period_years: s.return_period,
+      annual_exceedance_probability: s.aep,
+      ground_up_loss_kes: s.ground_up_loss_kes,
+      insured_loss_kes: s.net_loss_kes
+    })),
+    metrics: {
+      aal_ground_up_kes: aal == null ? null : Math.round(aal),
+      pml_100y_kes: byTier.extreme,
+      pml_250y_kes: byTier.common,
+      aal_net_kes: aalNet == null ? null : Math.round(aalNet),
+      rate_on_line_pct: tiv && aalNet != null ? Math.round((aalNet / tiv) * 10000) / 100 : null
+    }
+  };
+}
+
+async function runCatModelAsync(exposureRecord) {
+  const record = exposureRecord || {};
+  const lat = number(record.coordinates && record.coordinates.lat);
+  const lon = number(record.coordinates && record.coordinates.lon);
+  const housingClass = valueOf(record.exposure && record.exposure.housing_class);
+  const tiv = number(record.exposure && record.exposure.tiv_kes);
+  const gfa = number(record.exposure && record.exposure.floor_area_m2);
+  const floors = number(record.exposure && record.exposure.floors_above_ground);
+  const basements = number(record.exposure && record.exposure.basement_floors) || 0;
+  const plant = Boolean(valueOf(record.exposure && record.exposure.critical_plant_in_basement));
+  const terms = record.financial_terms || {};
+  const damageConfig = record.model_config && record.model_config.damage_function;
+  const warnings = [];
+  const errors = [];
+  const audit = record.audit || {};
+  if (audit.is_blocked === true) {
+    errors.push({ code: "AUDIT_BLOCKED", message: "Model execution is blocked by intake audit controls." });
+  }
+  if (lat == null || lon == null) errors.push({ code: "MISSING_COORDINATES", message: "Latitude and longitude are required." });
+  else if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    errors.push({ code: "INVALID_COORDINATES", message: "Latitude must be between -90 and 90 and longitude between -180 and 180." });
+  }
+  if (tiv == null || tiv <= 0) errors.push({ code: "MISSING_TIV", message: "A positive total insured value is required; no default was applied." });
+  if (!housingClass || !VULNERABILITY_CURVES[housingClass]) warnings.push({ code: "PROVISIONAL_CURVE", message: "A provisional RCC vulnerability curve was used because construction class is missing or unknown." });
+  if (gfa == null) warnings.push({ code: "MISSING_GFA", message: "Floor area is unavailable; losses use the declared TIV without a wet-storey split." });
+  const hazard = await evaluateHazardRaster(lat, lon);
+  if (hazard.status !== "ok") errors.push({ code: `HAZARD_${hazard.status.toUpperCase()}`, message: "One or more configured hazard rasters could not provide a sample." });
+  hazard.scenarios.forEach((scenario) => {
+    if (scenario.status === "invalid_source_value") {
+      warnings.push({ code: "INVALID_SUSCEPTIBILITY", tier: scenario.tier, message: "Raster source value is outside the required 0–1 range; it was not clamped." });
+    }
+  });
+
+  const priceInputs = { housingClass, tiv, gfa, floors, basements, plant, terms, damageConfig };
+  const scenarios = priceScenarios(hazard.scenarios, priceInputs);
+  const summary = summarizeMetrics(scenarios, tiv);
+  const byTier = summary.byTier;
   const result = {
     success: errors.length === 0,
     evaluated_at: new Date().toISOString(),
@@ -262,14 +297,15 @@ async function runCatModelAsync(exposureRecord) {
       y_axis: "annual_exceedance_probability",
       points: scenarios.map((s) => ({ tier: s.tier, return_period_years: s.return_period, annual_exceedance_probability: s.aep, ground_up_loss_kes: s.ground_up_loss_kes, insured_loss_kes: s.net_loss_kes }))
     },
-    base_loss_per_tier: scenarios.map((s) => ({ tier: s.tier, return_period_years: s.return_period, annual_exceedance_probability: s.aep, ground_up_loss_kes: s.ground_up_loss_kes, insured_loss_kes: s.net_loss_kes })),
+    base_loss_per_tier: summary.per_tier,
     base_loss_summary: { status: "calculated_from_declared_exposure", tiers: byTier },
     warnings,
     errors,
-    metrics: { aal_ground_up_kes: aal == null ? null : Math.round(aal), pml_100y_kes: byTier.extreme, pml_250y_kes: byTier.common, aal_net_kes: aalNet == null ? null : Math.round(aalNet), rate_on_line_pct: tiv && aalNet != null ? Math.round(aalNet / tiv * 10000) / 100 : null },
+    metrics: summary.metrics,
     ep_curve: scenarios
   };
-  return result;
+  const { attachAiUpgrade } = require("./aiUpgrade");
+  return attachAiUpgrade(result, { ...priceInputs, lat, lon }, { sampleSusceptibility, priceScenarios, summarizeMetrics });
 }
 
 function runCatModel(exposureRecord) {
@@ -296,4 +332,4 @@ function runCatModel(exposureRecord) {
   return promise;
 }
 
-module.exports = { evaluateHazard, sampleSusceptibility, calculateDamageRatio, financialLoss, runCatModel, VULNERABILITY_CURVES, RETURN_PERIODS: SCENARIOS };
+module.exports = { evaluateHazard, sampleSusceptibility, calculateDamageRatio, financialLoss, priceScenarios, summarizeMetrics, runCatModel, VULNERABILITY_CURVES, RETURN_PERIODS: SCENARIOS };
