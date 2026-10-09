@@ -126,7 +126,8 @@ function saveLocalCache(cache) {
  * Sanitizes an ID string for Firestore document key usage
  */
 function sanitizeDocId(id) {
-  return String(id || '').replace(/[\/\s#?\[\]]/g, '-').trim();
+  const reference = id && typeof id === 'object' && 'value' in id ? id.value : id;
+  return String(reference || '').replace(/[\/\s#?\[\]]/g, '-').trim();
 }
 
 /**
@@ -141,7 +142,9 @@ async function saveExposure(canonicalRecord) {
 
   const { db: firestoreDb, isMockMode: mock } = initializeFirestore();
 
-  const ref = canonicalRecord.reference || `PROP-${Date.now()}`;
+  const ref = canonicalRecord.reference && typeof canonicalRecord.reference === 'object' && 'value' in canonicalRecord.reference
+    ? canonicalRecord.reference.value
+    : canonicalRecord.reference || `PROP-${Date.now()}`;
   const docId = sanitizeDocId(ref);
 
   const documentData = {
