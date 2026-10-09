@@ -8,8 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap"
       rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css" />
@@ -19,7 +23,7 @@
       <aside class="sidebar">
         <a class="brand-link" href="index.html" title="Kenya Re">
           <span class="brand-tile">
-            <img class="brand-mark" src="brand/kenya-re-logo.png" alt="Kenya Re" />
+            <img class="brand-mark" src="brand/kenya-re-icon.png" alt="Kenya Re" />
           </span>
         </a>
         <nav class="sidebar-nav">
@@ -49,197 +53,262 @@
         <header class="page-head">
           <div class="page-head-main">
             <p class="page-kicker">Nairobi pluvial · facultative</p>
-            <h1 class="display-title">Overview</h1>
+            <h1 class="display-title" id="analysis-title">Analysis</h1>
           </div>
           <div class="page-head-meta">
             <span id="risk-name" class="risk-chip">No run yet</span>
-            <a href="index.html" class="btn-ghost px-4 py-2 text-sm">Back to intake</a>
+            <span id="risk-ref" class="mono page-head-ref"></span>
+            <a href="review.html" class="btn-ghost px-4 py-2 text-sm">Back to review</a>
           </div>
         </header>
 
-        <main class="px-8 pb-8 grid lg:grid-cols-[1.45fr_1fr] gap-5">
-          <div class="space-y-5">
-            <div class="grid grid-cols-3 gap-4">
-              <div class="card p-5">
-                <p class="text-xs text-[var(--muted)]">Ground-up AAL</p>
-                <p id="kpi-aal" class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">Average annual loss</p>
-              </div>
-              <div class="card p-5">
-                <p class="text-xs text-[var(--muted)]">PML 100-year</p>
-                <p id="kpi-pml100" class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">Occasional tier (1% AEP)</p>
-              </div>
-              <div class="card p-5">
-                <p class="text-xs text-[var(--muted)]">PML 250-year</p>
-                <p id="kpi-pml250" class="text-3xl font-semibold mt-2">—</p>
-                <p class="text-xs text-[var(--muted)] mt-1">Common tier (0.4% AEP)</p>
-              </div>
-            </div>
-            <div class="card p-6">
-              <div class="flex items-center justify-between mb-2">
-                <div>
-                  <p class="text-sm font-medium">Exceedance probability curve (EP Curve)</p>
-                  <p class="text-[11px] text-[var(--muted)]">10,000-yr simulated year-loss catalog with bootstrapped uncertainty band</p>
-                </div>
-                <div class="flex items-center gap-3 text-xs text-[var(--muted)]">
-                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#00274c] rounded-sm"></span> Single Simulation</span>
-                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#d11242]/30 rounded-sm"></span> 5th–95th Bootstrapped Band</span>
-                </div>
-              </div>
-              <div class="flex items-end gap-3 h-48 mt-4 pt-6 pb-1">
-                <div id="bar-10" class="flex-1 bg-[#efece6] rounded-xl h-[18%] transition-all duration-500 relative" title="10y"></div>
-                <div id="bar-25" class="flex-1 bg-[#d9d3c9] rounded-xl h-[32%] transition-all duration-500 relative" title="25y"></div>
-                <div id="bar-50" class="flex-1 bg-[var(--accent-soft)] rounded-xl h-[46%] transition-all duration-500 relative" title="50y"></div>
-                <div id="bar-100" class="flex-1 bg-[var(--brand)] rounded-xl h-[68%] transition-all duration-500 relative" title="100y">
-                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-0.5 font-semibold text-[#00274c]">100y PML</span>
-                </div>
-                <div id="bar-250" class="flex-1 bg-[var(--accent)] rounded-xl h-[85%] transition-all duration-500 relative" title="250y">
-                  <span class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-white border border-[var(--border)] rounded-full px-2 py-0.5 font-semibold text-[#00274c]">250y PML</span>
-                </div>
-                <div id="bar-500" class="flex-1 bg-gradient-to-t from-[#00274c] to-[#d11242] rounded-xl h-[95%] transition-all duration-500 relative" title="500y">
-                  <span id="badge-500" class="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] whitespace-nowrap bg-[#d11242] text-white rounded-full px-2 py-0.5 font-semibold shadow-sm">1-in-500y</span>
-                </div>
-              </div>
-              <div class="flex justify-between mt-3 text-xs text-[var(--muted)] font-mono">
-                <span>10y</span><span>25y</span><span>50y</span><span>100y</span><span>250y</span><span class="font-bold text-[#d11242]">500y (Tail)</span>
-              </div>
-              <div id="uncertainty-box" class="mt-4 p-3 bg-[#f8fafc] border border-[var(--border)] rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <span class="font-semibold text-[#00274c]">1-in-500 Year Tail Loss: </span>
-                  <span id="val-500" class="font-bold text-[#d11242]">—</span>
-                </div>
-                <div class="text-[var(--muted)]">
-                  <span>Bootstrapped 5th–95th%: </span>
-                  <span id="band-500" class="font-mono text-[#00274c]">—</span>
-                </div>
-              </div>
+        <main id="analysis-empty" class="analysis-main">
+          <div class="card p-8">
+            <p class="text-sm font-medium">No catastrophe run yet</p>
+            <p class="text-sm text-[var(--muted)] mt-2 mb-4">
+              Extract a slip, confirm or pin the location on Review, then run the model. This page reads the last stored result.
+            </p>
+            <div class="empty-actions">
+              <a href="review.html" class="btn-primary inline-block px-4 py-2 text-sm">Open review</a>
+              <a href="analysis.html?sample=1#hazard" class="btn-ghost inline-block px-4 py-2 text-sm">Preview sample layout</a>
             </div>
           </div>
-          <aside class="space-y-5">
-            <div class="card p-5">
-              <p class="text-sm font-medium">Underwriter Risk Summary</p>
-              <div id="summary-content" class="text-sm text-[var(--muted)] mt-2 mb-4 space-y-2">
-                <p>Run the catastrophe model on Review to populate institutional metrics.</p>
+        </main>
+
+        <main id="analysis-page" class="analysis-main hidden">
+          <p id="sample-banner" class="sample-banner hidden">Sample numbers — not a live run.</p>
+
+          <ol class="cat-pipeline" aria-label="Analysis steps">
+            <li data-nav="hazard"><a href="#hazard"><em>1</em> <span>Hazard</span></a></li>
+            <li data-nav="vulnerability"><a href="#vulnerability"><em>2</em> <span>Vulnerability</span></a></li>
+            <li data-nav="exposure"><a href="#exposure"><em>3</em> <span>Exposure</span></a></li>
+            <li data-nav="finance"><a href="#finance"><em>4</em> <span>Finance</span></a></li>
+          </ol>
+
+          <div class="analysis-steps">
+            <section class="analysis-step mod-card mod-hazard" data-step="hazard" aria-labelledby="hazard-title">
+              <header class="mod-head">
+                <h2 id="hazard-title" class="mod-title">Hazard</h2>
+                <p class="mod-lede">Coordinates in. Five TIFF susceptibility scores out. No metres. No money.</p>
+              </header>
+              <div class="io-split">
+                <article class="io-card io-in">
+                  <p class="io-kicker">Input</p>
+                  <h3 class="io-heading">Coordinates</h3>
+                  <p class="io-coord mono" id="haz-gps">not found</p>
+                  <p class="io-meta" id="haz-address">not found</p>
+                  <span class="io-pill" id="haz-gps-kind"></span>
+                </article>
+                <div class="io-arrow" aria-hidden="true">
+                  <span></span>
+                </div>
+                <article class="io-card io-out">
+                  <p class="io-kicker">Output</p>
+                  <h3 class="io-heading">Five susceptibility scores</h3>
+                  <div class="score-pills" id="haz-score-pills"></div>
+                  <p class="io-meta" id="haz-drain-note">One score per storm map at this lat / lon. Zero means dry.</p>
+                </article>
               </div>
-              <div class="space-y-2">
-                <button id="open-copilot-btn" type="button" class="w-full bg-[#00274c] hover:bg-[#001c38] text-white py-2 px-3 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-colors">
-                  <span>✦ Ask AI Copilot to Analyze / Run What-If</span>
-                </button>
-                <a href="review.html" class="btn-primary inline-block text-center w-full px-4 py-2 text-sm">Return to Review</a>
+              <p class="chart-caption">Shown only when the backend sends real TIFF scores for this pin.</p>
+              <p id="hz-chart-empty" class="chart-empty">No TIFF scores yet. They will appear here when the backend samples the five rasters — this page will not invent them.</p>
+              <div id="hz-chart-wrap" class="chart-frame chart-frame-step hidden">
+                <canvas id="hz-chart" aria-label="Susceptibility score versus return period"></canvas>
               </div>
+            </section>
+
+            <section class="analysis-step mod-card mod-vuln hidden" data-step="vulnerability" aria-labelledby="vuln-title">
+              <header class="mod-head">
+                <h2 id="vuln-title" class="mod-title">Vulnerability</h2>
+                <p class="mod-lede">Scores in. Depth, then damage ratio, out. The building’s money comes next, on Exposure and Finance.</p>
+              </header>
+              <div class="io-split">
+                <article class="io-card io-in">
+                  <p class="io-kicker">Input</p>
+                  <h3 class="io-heading">Susceptibility scores</h3>
+                  <div class="score-pills" id="vuln-score-pills"></div>
+                  <p class="io-meta" id="vuln-in-note">The five TIFF scores from Hazard, at this pin.</p>
+                </article>
+                <div class="io-arrow" aria-hidden="true"><span></span></div>
+                <article class="io-card io-out">
+                  <p class="io-kicker">Output</p>
+                  <h3 class="io-heading">Depth and damage ratio</h3>
+                  <div class="score-pills" id="vuln-out-pills"></div>
+                  <p class="io-meta" id="vuln-out-note">Metres from the score, then the JRC curve for this class.</p>
+                </article>
+              </div>
+
+              <aside class="assume-box">
+                <p class="assume-kicker">Assumptions — score to metres</p>
+                <p>
+                  The TIFFs are unitless 0–1. A damage function needs water depth.
+                  We do not have street gauges, so we state a linear scale:
+                </p>
+                <p class="assume-formula">local depth = H<sub>max</sub>(storm) × TIFF score</p>
+                <p>
+                  H<sub>max</sub> is the CAT engine’s assumed maximum depth if the cell were fully wet (score 1.0),
+                  one ceiling per storm. The table below shows the value that arrived with each score.
+                  Those ceilings are Nairobi IDF ponding / HEC-RAS valley peaks — not a sensor on this road.
+                  Score 0 stays dry. This is not a calibrated gauge conversion.
+                </p>
+                <p>
+                  Then the <strong>JRC Huizinga</strong> sigmoid for this construction class turns metres into a damage ratio
+                  (mabati fails early; RCC later). Land and frame survive, so the curve never reaches 100%.
+                </p>
+                <p id="vuln-class-note" class="assume-class"></p>
+              </aside>
+
+              <p class="chart-caption" id="vuln-caption">Damage ratio versus derived depth. Site points appear only when Hazard sent real TIFF scores.</p>
+              <div class="chart-frame chart-frame-step">
+                <canvas id="dd-chart" aria-label="Vulnerability: damage ratio versus flood depth"></canvas>
+              </div>
+              <table class="rp-table" id="vuln-table">
+                <thead>
+                  <tr>
+                    <th>RP</th>
+                    <th>Score</th>
+                    <th>H<sub>max</sub></th>
+                    <th>Depth</th>
+                    <th>Damage ratio</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <p class="section-label">Wet storey</p>
+              <p class="chart-caption" id="stack-caption">Damage applies to the ground plate, not the full tower.</p>
+              <div id="analysis-stack" class="analysis-stack"></div>
+            </section>
+
+            <section class="analysis-step mod-card mod-exposure hidden" data-step="exposure" aria-labelledby="exp-title">
+              <header class="mod-head">
+                <h2 id="exp-title" class="mod-title">Exposure</h2>
+                <p class="mod-lede">The building, its value, and the pin — not the insurance arithmetic.</p>
+              </header>
+              <div class="exposure-loc">
+                <div>
+                  <p class="fact-label">Location</p>
+                  <p class="fact-value mono" id="exp-gps">not found</p>
+                  <p class="fact-note" id="exp-address">not found</p>
+                  <div class="haz-gps-meta">
+                    <span id="exp-gps-status" class="gps-pill">not found</span>
+                    <span id="exp-gps-source"></span>
+                  </div>
+                </div>
+                <div id="exposure-map" class="exposure-map" role="img" aria-label="Nairobi pin"></div>
+              </div>
+              <div class="mod-facts exposure-facts">
+                <div>
+                  <p class="fact-label">TIV</p>
+                  <p class="fact-value" id="exp-tiv">not found</p>
+                  <p class="fact-note" id="exp-tiv-src"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Construction</p>
+                  <p class="fact-value" id="exp-class">not found</p>
+                  <p class="fact-note" id="exp-class-src"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Gross floor area</p>
+                  <p class="fact-value" id="exp-gfa">not found</p>
+                  <p class="fact-note" id="exp-gfa-src"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Floors / basements</p>
+                  <p class="fact-value" id="exp-floors">not found</p>
+                  <p class="fact-note" id="exp-plant"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Cover</p>
+                  <p class="fact-value" id="exp-cover">not found</p>
+                  <p class="fact-note" id="exp-cover-src"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Occupancy</p>
+                  <p class="fact-value" id="exp-occ">not found</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="analysis-step finance-blotter hidden" data-step="finance" aria-labelledby="finance-title">
+              <div class="blotter-rule" aria-hidden="true"></div>
+              <header class="blotter-head">
+                <h2 id="finance-title" class="blotter-title">Finance</h2>
+                <p class="blotter-sub">Terms in. AAL, PML and the EP curve out.</p>
+              </header>
+              <section class="decision-strip" aria-label="Facultative screening">
+                <div class="decision-verdict" id="decision-verdict">
+                  <p class="decision-kicker">Should we write?</p>
+                  <p class="decision-stamp" id="decision-stamp">—</p>
+                </div>
+                <div class="decision-facts">
+                  <div class="decision-fact">
+                    <span>Property</span>
+                    <strong id="dec-property">not found</strong>
+                  </div>
+                  <div class="decision-fact">
+                    <span>TIV</span>
+                    <strong id="dec-tiv">not found</strong>
+                  </div>
+                  <div class="decision-fact">
+                    <span>AAL (net)</span>
+                    <strong id="dec-aal">not found</strong>
+                  </div>
+                  <div class="decision-fact">
+                    <span>PML @ 100y</span>
+                    <strong id="dec-pml">not found</strong>
+                  </div>
+                </div>
+                <p class="decision-why" id="decision-why"></p>
+              </section>
+
+              <div class="blotter-hero">
+                <p class="fact-label">Technical premium <em>(pure — net AAL, no load)</em></p>
+                <p class="blotter-money" id="fin-premium">not found</p>
+                <p class="blotter-hero-note" id="fin-premium-note"></p>
+              </div>
+
+              <dl class="ledger" id="finance-ledger"></dl>
+
+              <div class="limit-consume" id="limit-consume">
+                <div class="limit-consume-head">
+                  <span>Limit consumption @ 250y</span>
+                  <strong id="limit-consume-pct">not found</strong>
+                </div>
+                <div class="limit-track" aria-hidden="true">
+                  <span id="limit-consume-bar"></span>
+                </div>
+                <p class="blotter-hero-note" id="limit-consume-note"></p>
+              </div>
+              <section class="ep-panel" aria-labelledby="ep-title">
+            <header class="ep-head">
+              <div>
+                <h2 id="ep-title" class="mod-title">Exceedance curve</h2>
+              </div>
+              <p class="chart-caption" id="ep-caption">
+                Loss versus return period, joined from the five stated points — not a continuous model.
+              </p>
+            </header>
+            <div class="chart-frame chart-frame-ep">
+              <canvas id="ep-chart" aria-label="Exceedance loss versus return period"></canvas>
             </div>
-          </aside>
+            <div class="ep-legend">
+              <span><i class="swatch swatch-navy"></i> Ground-up</span>
+              <span><i class="swatch swatch-crimson"></i> Net of deductible &amp; limit</span>
+              <span><i class="swatch swatch-gold"></i> PML marks</span>
+            </div>
+              </section>
+            </section>
+          </div>
+
+          <nav class="step-foot" aria-label="Step">
+            <a class="btn-ghost px-4 py-2 text-sm" id="step-prev" href="#hazard">Previous</a>
+            <a class="btn-primary px-4 py-2 text-sm" id="step-next" href="#vulnerability">Next</a>
+          </nav>
         </main>
       </div>
     </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/session.js"></script>
     <script src="js/copilot.js"></script>
-    <script>
-      const API_BASE = (location.port && location.port !== "3000") ? (location.protocol + "//" + location.hostname + ":3000") : "";
-
-      function fmtKes(n) {
-        if (!n || isNaN(n)) return "—";
-        if (n >= 1e9) return "KES " + (n / 1e9).toFixed(2) + "B";
-        if (n >= 1e6) return "KES " + (n / 1e6).toFixed(1) + "M";
-        return "KES " + Number(n).toLocaleString("en-KE");
-      }
-
-      async function renderAnalysis() {
-        let runData = null;
-        try {
-          const raw = sessionStorage.getItem("kenyaReResults") || sessionStorage.getItem("kenyaReHandoff");
-          if (raw) runData = JSON.parse(raw);
-        } catch (_) {}
-
-        // If not in session, retrieve latest record from database
-        if (!runData || !runData.results) {
-          try {
-            const res = await fetch(API_BASE + "/api/exposure?limit=1");
-            if (res.ok) {
-              const list = await res.json();
-              if (list && list.length && list[0].model_results) {
-                runData = { exposure: list[0], results: list[0].model_results };
-              }
-            }
-          } catch (e) {
-            console.warn("DB fetch fallback notice:", e);
-          }
-        }
-
-        if (!runData) return;
-
-        const exp = runData.exposure || runData;
-        const res = runData.results || exp.model_results;
-        const propName = exp.property_name?.value || exp.property_name || "Landmark Plaza";
-        document.getElementById("risk-name").textContent = propName;
-
-        if (res && res.metrics) {
-          document.getElementById("kpi-aal").textContent = fmtKes(res.metrics.aal_ground_up_kes);
-          document.getElementById("kpi-pml100").textContent = fmtKes(res.metrics.pml_100y_kes);
-          document.getElementById("kpi-pml250").textContent = fmtKes(res.metrics.pml_250y_kes);
-
-          const summary = document.getElementById("summary-content");
-          if (summary) {
-            summary.innerHTML = `
-              <p><strong>Property:</strong> ${propName}</p>
-              <p><strong>Database ID:</strong> <span class="font-mono text-xs">${exp.reference?.value || exp.reference || 'EIB-NAI-LP-2026-001'}</span></p>
-              <p><strong>Net Annual Loss (AAL):</strong> ${fmtKes(res.metrics.aal_net_kes)}</p>
-              <p><strong>Rate-on-Line (ROL):</strong> ${res.metrics.rate_on_line_pct}%</p>
-              <p class="text-xs pt-1 text-[var(--accent)] font-medium">${res.hazard_summary?.ai_drainage_penalty_applied ? '⚠️ AI Drainage Surcharge (+0.35m) Applied: ' + res.hazard_summary.nearby_hotspot : '✓ Standard Riverine Hazard'}</p>
-            `;
-          }
-        }
-
-        // Render EP Curve bars including 1-in-500 year
-        if (res && res.ep_curve) {
-          // If 500y is not in ep_curve, extrapolate it for complete tail visualization
-          let pt500 = res.ep_curve.find(p => p.return_period === 500);
-          if (!pt500) {
-            const pml250 = res.metrics?.pml_250y_kes || (res.ep_curve[4]?.net_loss_kes || 28000000);
-            const loss500 = Math.round(pml250 * 1.05); // slight tail increment
-            pt500 = {
-              return_period: 500,
-              net_loss_kes: loss500,
-              p5_kes: Math.round(loss500 * 0.82),
-              p95_kes: Math.round(loss500 * 1.25)
-            };
-          }
-
-          const allCurve = [...res.ep_curve];
-          if (!res.ep_curve.some(p => p.return_period === 500)) allCurve.push(pt500);
-
-          const maxLoss = Math.max(...allCurve.map(p => p.net_loss_kes || p.ground_up_loss_kes || 1));
-          allCurve.forEach(pt => {
-            const bar = document.getElementById("bar-" + pt.return_period);
-            if (bar) {
-              const pct = Math.max(14, Math.round(((pt.net_loss_kes || pt.ground_up_loss_kes) / maxLoss) * 94));
-              bar.style.height = pct + "%";
-              bar.setAttribute("title", `${pt.return_period}y: ${fmtKes(pt.net_loss_kes)}`);
-            }
-          });
-
-          // Uncertainty box
-          const val500El = document.getElementById("val-500");
-          const band500El = document.getElementById("band-500");
-          if (val500El) val500El.textContent = fmtKes(pt500.net_loss_kes);
-          if (band500El) {
-            const p5 = pt500.bootstrapped_uncertainty?.p5_kes || pt500.p5_kes;
-            const p95 = pt500.bootstrapped_uncertainty?.p95_kes || pt500.p95_kes;
-            band500El.textContent = `${fmtKes(p5)} – ${fmtKes(p95)}`;
-          }
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        renderAnalysis();
-        const copilotBtn = document.getElementById("open-copilot-btn");
-        if (copilotBtn) {
-          copilotBtn.addEventListener("click", () => {
-            const toggle = document.getElementById("copilot-toggle");
-            if (toggle) toggle.click();
-          });
-        }
-      });
-    </script>
+    <script src="js/analysis.js?v=session1"></script>
   </body>
 </html>

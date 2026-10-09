@@ -52,11 +52,31 @@ async function runTests() {
     }
   }
 
-  // 1. Hazard Evaluation
-  console.log("[TEST 1] Evaluating Nairobi Hazard with AI Drainage Surcharge...");
+  // 1. Hazard Evaluation — five storms, depth = H_max × score
+  console.log("[TEST 1] Score → metres (H_max × TIFF score)...");
+  const scored = evaluateHazard(-1.26, 36.80, {
+    extreme: 0.80,
+    severe: 0.80,
+    moderate: 0.80,
+    occasional: 0.80,
+    common: 0.80
+  });
+  const d10 = scored.scenarios.find((s) => s.return_period === 10);
+  const d100 = scored.scenarios.find((s) => s.return_period === 100);
+  const d250 = scored.scenarios.find((s) => s.return_period === 250);
+  check("Hazard returns 5 return period scenarios", scored.scenarios.length === 5);
+  check("10y uses 0.50 m H_max × 0.80 = 0.40 m (not 1.8 m)", d10.flood_depth_m === 0.4);
+  check("100y uses 1.80 m H_max × 0.80 = 1.44 m", d100.flood_depth_m === 1.44);
+  check("El Niño 250y uses 2.20 m H_max × 0.80 = 1.76 m", d250.flood_depth_m === 1.76);
+  check("10y depth is lower than 250y depth", d10.flood_depth_m < d250.flood_depth_m);
+
+  const dry = evaluateHazard(-1.26, 36.80, {
+    extreme: 0, severe: 0, moderate: 0, occasional: 0, common: 0
+  });
+  check("Score 0 stays dry (0 m)", dry.scenarios.every((s) => s.flood_depth_m === 0));
+
   const hazard = evaluateHazard(-1.2847, 36.8247);
-  check("Hazard returns 5 return period scenarios", hazard.scenarios.length === 5);
-  check("10y depth is lower than 250y depth", hazard.scenarios[0].flood_depth_m < hazard.scenarios[4].flood_depth_m);
+  check("Landmark pin samples the hazard book", hazard.score_source === "hazard_book");
 
   // 2. Cat Model Execution
   console.log("\n[TEST 2] Running Cat Model on Landmark Plaza (Wet-Storey Split)...");
@@ -66,9 +86,10 @@ async function runTests() {
   const ep = modelRes.ep_curve;
   check("Loss monotonicity: 250Y loss > 10Y loss", ep[4].ground_up_loss_kes > ep[0].ground_up_loss_kes);
   check("Tower Wet-Storey Split: 100Y loss does NOT exceed full tower (KES 1.09B)", ep[3].ground_up_loss_kes < 300000000);
-  check("AAL Ground-up is positive", modelRes.metrics.aal_ground_up_kes > 0);
-  check("PML 100Y Net Loss is calculated", modelRes.metrics.pml_100y_kes > 0);
+  check("AAL Ground-up is a number", Number.isFinite(modelRes.metrics.aal_ground_up_kes));
+  check("PML 100Y is a number (dry pins may be 0)", Number.isFinite(modelRes.metrics.pml_100y_kes));
   check("PML 250Y Net Loss is higher than PML 100Y", modelRes.metrics.pml_250y_kes >= modelRes.metrics.pml_100y_kes);
+  check("100y depth is H_max × sampled score, not a flat 1.8 m", ep[3].flood_depth_m < 1.8);
 
   // 3. Database Persistence & Retrieval
   console.log("\n[TEST 3] Persisting Model Run to Firestore and Retrieving...");

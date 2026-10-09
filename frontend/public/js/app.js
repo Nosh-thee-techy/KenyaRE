@@ -144,7 +144,8 @@
       return;
     }
     const hash = formId ? "#" + encodeURIComponent(formId) : "";
-    location.href = "review.html" + hash;
+    const base = window.KenyaReSession ? window.KenyaReSession.href("review.html") : "review.html";
+    location.href = base + hash;
   }
 
   function unlockIntake() {
@@ -157,6 +158,7 @@
     try {
       localStorage.removeItem(INTAKE_LOCK_KEY);
     } catch (_) {}
+    if (window.KenyaReSession) window.KenyaReSession.clear();
   }
 
   function persistIntakeLock() {
@@ -167,6 +169,7 @@
       v: INTAKE_LOCK_VERSION,
       digested: true,
       locked: true,
+      sessionId: window.KenyaReSession ? window.KenyaReSession.get() : null,
       state: state,
       rawSlip: slip,
       pendingOverrides: pendingOverrides || null,
@@ -214,6 +217,13 @@
         : null;
     const slipEl = document.getElementById("slip");
     if (slipEl) slipEl.value = rawSlip;
+    if (window.KenyaReSession) {
+      const sid =
+        saved.sessionId ||
+        (state && state.id) ||
+        (state && state.reference && (state.reference.value || state.reference));
+      if (sid) window.KenyaReSession.set(sid);
+    }
     try {
       fillForm();
     } catch (_) {
@@ -1284,6 +1294,13 @@
     state = JSON.parse(JSON.stringify(ingestPayload(payload)));
     digested = true;
     intakeLocked = true;
+    if (window.KenyaReSession) {
+      const sid =
+        (payload && payload.id) ||
+        (state && state.id) ||
+        (state && state.reference && (state.reference.value || state.reference));
+      if (sid) window.KenyaReSession.set(sid);
+    }
     adjusting = false;
     pendingOverrides = null;
     fillForm();
@@ -1530,13 +1547,19 @@
 
     // Build the full canonical record from the input form
     const propName = (typeof state.property_name === "object" ? state.property_name.value : state.property_name) ||
-      (byId("property_name") && byId("property_name").textContent !== "No risk loaded" ? byId("property_name").textContent : "Landmark Plaza Commercial Development");
+      (byId("property_name") && byId("property_name").textContent !== "No risk loaded" ? byId("property_name").textContent : null);
     const refCode = (typeof state.reference === "object" ? state.reference.value : state.reference) ||
-      (byId("reference") && byId("reference").textContent ? byId("reference").textContent : "EIB-NAI-LP-2026-001");
+      (byId("reference") && byId("reference").textContent ? byId("reference").textContent : null);
+    const sessionId = (window.KenyaReSession && window.KenyaReSession.get()) || refCode;
+    if (!sessionId) {
+      toast("No session ID. Parse a slip first.", true);
+      return;
+    }
 
     const canonicalRecord = {
+      id: sessionId,
       property_name: propName,
-      reference: refCode,
+      reference: refCode || sessionId,
       coordinates: {
         lat: { value: getLat(), source: field(state, "coordinates.lat.source") || "human" },
         lon: { value: getLon(), source: field(state, "coordinates.lon.source") || "human" },
@@ -1595,25 +1618,22 @@
       });
       if (!res.ok) throw new Error("Catastrophe engine returned HTTP " + res.status);
       const modelData = await res.json();
-      console.log("✅ [Model Run] Retrieved catastrophe results from database:", modelData);
-      sessionStorage.setItem("kenyaReResults", JSON.stringify(modelData));
-      sessionStorage.setItem("kenyaReHandoff", JSON.stringify(modelData.exposure || body));
-
-      const pml100 = modelData.results?.metrics?.pml_100y_kes != null ? fmtKes(modelData.results.metrics.pml_100y_kes) : "—";
-      const aal = modelData.results?.metrics?.aal_ground_up_kes != null ? fmtKes(modelData.results.metrics.aal_ground_up_kes) : "—";
-      toast("Run complete! Retrieved from DB: AAL KES " + aal + " · PML-100 KES " + pml100);
-      showHandoff(modelData);
+      const id = modelData.id || sessionId;
+      if (window.KenyaReSession) window.KenyaReSession.set(id);
+      console.log("✅ [Model Run] Session", id, "input + output saved");
+      toast("Run complete. Session " + id);
+      showHandoff(id);
     } catch (err) {
       console.warn("Notice: Cat model offline fallback:", err.message);
-      showHandoff(body);
+      toast(err.message || "Model run failed.", true);
     }
   }
 
-  function showHandoff(body) {
-    try {
-      sessionStorage.setItem("kenyaReHandoff", JSON.stringify(body));
-    } catch (_) {}
-    window.location.href = "analysis.html";
+  function showHandoff(id) {
+    const sid = (window.KenyaReSession && window.KenyaReSession.set(id)) || id;
+    window.location.href = sid
+      ? "analysis.html?id=" + encodeURIComponent(sid)
+      : "analysis.html";
   }
 
   function toast(msg, danger) {
@@ -1913,13 +1933,9 @@
   async function syncWithDatabase() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const queryId = urlParams.get("id");
-      let url = API_BASE + "/api/exposure";
-      if (queryId) {
-        url = API_BASE + "/api/exposure/" + encodeURIComponent(queryId);
-      } else {
-        url = API_BASE + "/api/exposure?limit=1";
-      }
+      const queryId = urlParams.get("id") || (window.KenyaReSession && window.KenyaReSession.get());
+      if (!queryId) return false;
+      const url = API_BASE + "/api/exposure/" + encodeURIComponent(queryId);
 
       const res = await fetch(url);
       if (!res.ok) return false;
@@ -1927,6 +1943,7 @@
       const record = Array.isArray(data) ? data[0] : data;
       if (!record || (!record.property_name && !record.coordinates)) return false;
 
+      if (window.KenyaReSession) window.KenyaReSession.set(record.id || queryId);
       applyParse(record);
       const name = (typeof record.property_name === "object" ? record.property_name.value : record.property_name) || "risk profile";
       toast("Retrieved '" + name + "' from database.");
@@ -1940,12 +1957,11 @@
   // Hook all 'Review & complete' links to pass the active risk ID and persist to DB
   document.querySelectorAll('a[href*="review.html"]').forEach(function (link) {
     link.addEventListener("click", function () {
-      if (digested) {
-        const ref = (typeof state.reference === "object" ? state.reference.value : state.reference) || "";
-        if (ref) {
-          link.href = "review.html?id=" + encodeURIComponent(ref);
-        }
-      }
+      const id =
+        (window.KenyaReSession && window.KenyaReSession.get()) ||
+        (typeof state.reference === "object" ? state.reference.value : state.reference) ||
+        "";
+      if (id) link.href = "review.html?id=" + encodeURIComponent(id);
     });
   });
 

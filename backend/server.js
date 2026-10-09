@@ -1,9 +1,9 @@
 /**
  * Kenya Re Nairobi Flood CatNet — API gateway + static intake UI
  */
-require("dotenv").config();
-const express = require("express");
 const path = require("node:path");
+require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
+const express = require("express");
 const fs = require("node:fs");
 const multer = require("multer");
 
@@ -12,7 +12,18 @@ const { geocodeAddress } = require("./src/services/geocoder");
 const { validateNairobiCoordinates } = require("./src/services/bounds");
 const { loadDocument, supportedExtensions } = require("./src/loaders/document.loader");
 const extractionRoutes = require("./src/routes/extraction.routes");
-const { saveExposure, getExposure, listExposures, deleteExposure } = require("./src/services/firestore.service");
+const {
+  saveExposure,
+  saveModelRun,
+  getExposure,
+  getModelRun,
+  getSession,
+  listExposures,
+  deleteExposure,
+  asPlainId,
+  sanitizeDocId
+} = require("./src/services/firestore.service");
+const { getFirebaseWebConfig, hasFirebaseWebConfig } = require("./src/services/firebase.config");
 const { runCatModel } = require("./src/engine/catModel");
 const { chatWithCopilot } = require("./src/services/copilot.service");
 
@@ -95,7 +106,7 @@ async function parseSlipHandler(req, res) {
       console.warn("[Firestore] Auto-save on parse slip notice:", saveErr.message);
     }
 
-    return res.json({ ...canonical, extracted_text: text || "" });
+    return res.json({ ...canonical, id: canonical.id || null, extracted_text: text || "" });
   } catch (err) {
     console.error("Error parsing slip:", err);
     return res.status(500).json({
@@ -160,6 +171,13 @@ app.get("/api/intake/demo/landmark", async (_req, res) => {
   }
 });
 
+app.get("/api/firebase-config", (_req, res) => {
+  if (!hasFirebaseWebConfig()) {
+    return res.status(503).json({ error: "Firebase web config is not configured." });
+  }
+  return res.json(getFirebaseWebConfig());
+});
+
 // -------------------------------------------------------------
 // FIRESTORE DATABASE PERSISTENCE ENDPOINTS
 // -------------------------------------------------------------
@@ -191,6 +209,38 @@ app.get("/api/exposure", async (req, res) => {
   } catch (err) {
     return res.status(500).json({
       error: "Failed to list exposure records from Firestore.",
+      details: err.message
+    });
+  }
+});
+
+app.get("/api/session/:id", async (req, res) => {
+  try {
+    const session = await getSession(req.params.id);
+    if (!session.input && !session.output) {
+      return res.status(404).json({ error: `Session '${req.params.id}' was not found.` });
+    }
+    return res.json(session);
+  } catch (err) {
+    return res.status(500).json({
+      error: "Failed to retrieve session.",
+      details: err.message
+    });
+  }
+});
+
+app.get("/api/model/:id", async (req, res) => {
+  try {
+    const record = await getModelRun(req.params.id);
+    if (!record) {
+      return res.status(404).json({
+        error: `Model output for '${req.params.id}' was not found.`
+      });
+    }
+    return res.json(record);
+  } catch (err) {
+    return res.status(500).json({
+      error: "Failed to retrieve model output.",
       details: err.message
     });
   }
@@ -231,32 +281,44 @@ app.delete("/api/exposure/:id", async (req, res) => {
 // -------------------------------------------------------------
 app.post("/api/model/run", async (req, res) => {
   try {
-    const exposureData = req.body;
-    if (!exposureData || typeof exposureData !== "object") {
+    const body = req.body;
+    if (!body || typeof body !== "object") {
       return res.status(400).json({ error: "Exposure risk data payload is required." });
     }
 
-    // 1. Run the Catastrophe Modeling Engine (Modules 1-4)
-    const results = await runCatModel(exposureData);
-    if (!results.success) {
-      return res.status(422).json(results);
+    const sessionId = sanitizeDocId(body.id || asPlainId(body.reference));
+    let exposureData = body;
+    if (sessionId) {
+      const storedInput = await getExposure(sessionId);
+      if (storedInput && (!body.coordinates && !body.exposure)) {
+        exposureData = storedInput;
+      }
     }
 
-    // 2. Persist the updated risk and calculation results into Firestore
-    const recordToSave = {
-      ...exposureData,
-      model_results: results,
-      last_modeled_at: new Date().toISOString()
-    };
-    const saved = await saveExposure(recordToSave);
+    const inputSave = await saveExposure({ ...exposureData, id: sessionId || undefined });
+    const id = inputSave.id;
+
+    const results = await runCatModel(exposureData);
+    const outputSave = await saveModelRun(id, results);
+
+    if (results && results.success === false) {
+      return res.status(422).json({
+        success: false,
+        id: id,
+        input: inputSave.data,
+        output: outputSave.data,
+        results: results
+      });
+    }
 
     return res.json({
       success: true,
-      id: saved.id,
-      storage: saved.storage,
-      exposure: recordToSave,
-      ...results,
-      results
+      id: id,
+      storage: outputSave.storage,
+      input: inputSave.data,
+      output: outputSave.data,
+      exposure: inputSave.data,
+      results: results
     });
   } catch (err) {
     console.error("Error executing catastrophe model:", err);

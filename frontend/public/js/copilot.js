@@ -169,12 +169,17 @@
     let exposure = null;
     let results = null;
 
+    if (window.__kenyaReSessionPair) {
+      exposure = window.__kenyaReSessionPair.input || null;
+      results = (window.__kenyaReSessionPair.output && window.__kenyaReSessionPair.output.results) || window.__kenyaReSessionPair.output || null;
+    }
+
     try {
       const resRaw = sessionStorage.getItem("kenyaReResults");
       if (resRaw) {
         const parsed = JSON.parse(resRaw);
-        results = parsed.results || parsed;
-        exposure = parsed.exposure || null;
+        results = results || parsed.results || parsed;
+        exposure = exposure || parsed.exposure || parsed.input || null;
       }
     } catch (_) {}
 

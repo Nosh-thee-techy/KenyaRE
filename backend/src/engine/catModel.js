@@ -120,6 +120,7 @@ async function evaluateHazardRaster(lat, lon) {
 // while new callers can await it for the georeferenced raster result.
 function evaluateHazard(lat, lon) {
   const promise = evaluateHazardRaster(lat, lon);
+  promise.ai_penalty_m = 0;
   promise.scenarios = SCENARIOS.map((scenario, index) => ({
     ...scenario,
     flood_depth_m: [0.25, 0.55, 0.95, 1.45, 2.2][index],
