@@ -237,7 +237,10 @@ app.post("/api/model/run", async (req, res) => {
     }
 
     // 1. Run the Catastrophe Modeling Engine (Modules 1-4)
-    const results = runCatModel(exposureData);
+    const results = await runCatModel(exposureData);
+    if (!results.success) {
+      return res.status(422).json(results);
+    }
 
     // 2. Persist the updated risk and calculation results into Firestore
     const recordToSave = {
@@ -252,13 +255,13 @@ app.post("/api/model/run", async (req, res) => {
       id: saved.id,
       storage: saved.storage,
       exposure: recordToSave,
+      ...results,
       results
     });
   } catch (err) {
     console.error("Error executing catastrophe model:", err);
     return res.status(500).json({
       error: "Catastrophe model execution failed.",
-      details: err.message
     });
   }
 });

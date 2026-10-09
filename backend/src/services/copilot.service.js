@@ -456,7 +456,7 @@ async function chatWithCopilot({ query, exposure, results, history }) {
   // If results are missing or incomplete, calculate them live using the catastrophe engine
   if (!currentResults.metrics || !currentResults.ep_curve) {
     try {
-      currentResults = runCatModel(currentExposure);
+      currentResults = await runCatModel(currentExposure);
     } catch (_) {}
   }
 
@@ -476,7 +476,7 @@ async function chatWithCopilot({ query, exposure, results, history }) {
         simulatedExposure.coordinates.lat = { value: -1.3500, source: "ai_what_if_neutral" };
         simulatedExposure.coordinates.lon = { value: 36.7500, source: "ai_what_if_neutral" };
       }
-      const newRun = runCatModel(simulatedExposure);
+      const newRun = await runCatModel(simulatedExposure);
       simulationResult = {
         simulated: newRun,
         changesApplied: whatIfAnalysis.changesApplied,
