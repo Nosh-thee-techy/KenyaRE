@@ -9,7 +9,7 @@
   const KEY = "kenyaReSessionId";
   const PENDING_KEY = "kenyaReRunPending";
   const FRESH_KEY = "kenyaReFreshRun";
-  const AGG_STEPS = ["hazard", "vulnerability", "exposure", "finance", "ai"];
+  const AGG_STEPS = ["hazard", "vulnerability", "exposure", "finance", "results"];
 
   function fromQuery() {
     try {

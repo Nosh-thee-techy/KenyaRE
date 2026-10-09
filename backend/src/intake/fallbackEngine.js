@@ -28,6 +28,13 @@ function applyFallbacks(raw = {}, options = {}) {
   let lon = raw.lon != null ? parseFloat(raw.lon) : null;
   let gpsSource = 'extracted';
 
+  if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= 33 && lat <= 42 && lon >= -2.5 && lon <= 1.5) {
+    const swapped = lat;
+    lat = lon;
+    lon = swapped;
+    warnings.push("Latitude and longitude looked swapped; they were exchanged.");
+  }
+
   if (options.humanCoords && options.humanCoords.lat != null && options.humanCoords.lon != null) {
     lat = parseFloat(options.humanCoords.lat);
     lon = parseFloat(options.humanCoords.lon);
@@ -43,14 +50,14 @@ function applyFallbacks(raw = {}, options = {}) {
     warnings.push("GPS was not on the slip; looked up the address. Underwriter must confirm.");
   }
 
-  if (lat != null && lon != null) {
+  if (lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon)) {
     const bounds = validateNairobiCoordinates(lat, lon);
+    record.coordinates.lat = tagged(lat, gpsSource);
+    record.coordinates.lon = tagged(lon, gpsSource);
     if (!bounds.isValid) {
-      blockReasons.push(bounds.error);
-    } else {
-      if (bounds.warning) warnings.push(bounds.warning);
-      record.coordinates.lat = tagged(lat, gpsSource);
-      record.coordinates.lon = tagged(lon, gpsSource);
+      blockReasons.push(bounds.error || "Pin is outside the Nairobi raster. Confirm or drop a new pin.");
+    } else if (bounds.warning) {
+      warnings.push(bounds.warning);
     }
   } else {
     blockReasons.push("GPS coordinates missing. Underwriter must pinpoint property on map or provide address.");

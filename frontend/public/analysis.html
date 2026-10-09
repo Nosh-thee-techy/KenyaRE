@@ -69,7 +69,7 @@
           <li data-agg="vulnerability">Vulnerability · score to depth to JRC</li>
           <li data-agg="exposure">Exposure · TIV × damage ratio</li>
           <li data-agg="finance">Finance · AAL, PML, EP</li>
-          <li data-agg="ai">AI upgrade · 24 hotspots and sources</li>
+          <li data-agg="results">Results · write / hold and briefing</li>
         </ol>
         <p class="run-agg-note">The desk opens when this run is stored.</p>
       </div>
@@ -96,6 +96,7 @@
             <li data-nav="vulnerability"><a href="#vulnerability"><em>2</em> <span>Vulnerability</span></a></li>
             <li data-nav="exposure"><a href="#exposure"><em>3</em> <span>Exposure</span></a></li>
             <li data-nav="finance"><a href="#finance"><em>4</em> <span>Finance</span></a></li>
+            <li data-nav="results"><a href="#results"><em>5</em> <span>Results</span></a></li>
           </ol>
 
           <div class="analysis-steps">
@@ -216,56 +217,136 @@
             <section class="analysis-step mod-card finance-blotter hidden" data-step="finance" aria-labelledby="finance-title">
               <header class="mod-head">
                 <h2 id="finance-title" class="mod-title">Finance</h2>
-                <p class="mod-lede">Do we write, and at what premium?</p>
+                <p class="mod-lede">What is the insured loss on the TIFF base?</p>
               </header>
               <div class="io-split">
                 <article class="io-card io-in">
                   <p class="io-kicker">Input</p>
-                  <h3 class="io-heading">Losses and terms</h3>
+                  <h3 class="io-heading">Ground-up and terms</h3>
                   <p class="io-coord" id="fin-in-aal">not found</p>
                   <p class="io-meta" id="fin-in-note">Ground-up from Exposure, plus deductible and limit from the slip.</p>
                 </article>
                 <div class="io-arrow" aria-hidden="true"><span></span></div>
                 <article class="io-card io-out">
                   <p class="io-kicker">Output</p>
-                  <h3 class="io-heading">AAL / PML</h3>
-                  <div class="fin-io-stats">
+                  <h3 class="io-heading">AAL · PML · TVaR</h3>
+                  <div class="fin-io-stats fin-io-stats-3">
                     <div>
-                      <p class="fact-label">Technical premium</p>
+                      <p class="fact-label">AAL (net)</p>
                       <p class="io-coord" id="fin-aal">not found</p>
                     </div>
                     <div>
                       <p class="fact-label">PML @ 100-year</p>
                       <p class="io-coord" id="fin-pml">not found</p>
                     </div>
+                    <div>
+                      <p class="fact-label">TVaR @ 100-year</p>
+                      <p class="io-coord" id="fin-tvar">not found</p>
+                    </div>
                   </div>
-                  <p class="io-meta" id="fin-out-note">Net of deductible and limit.</p>
+                  <p class="io-meta" id="fin-out-note">Net of deductible and limit. Five stated points, not a continuous tail.</p>
                 </article>
               </div>
-              <section class="ai-loss-panel" id="ai-loss-panel" aria-labelledby="ai-loss-title">
-                <header class="ai-loss-head">
-                  <h3 id="ai-loss-title" class="mod-title">Base vs AI-upgraded loss</h3>
-                  <p class="chart-caption" id="ai-loss-lede">The TIFF proxy is the base. AI only moves the number on a blinded drainage miss.</p>
+              <dl class="terms-strip" id="fin-terms"></dl>
+              <p class="wet-chip" id="fin-tvar-note"></p>
+              <section class="ep-panel" aria-labelledby="ep-title">
+                <header class="ep-head">
+                  <h2 id="ep-title" class="mod-title">Exceedance curve</h2>
+                  <p class="chart-caption" id="ep-caption">Five stated points — not a continuous model.</p>
                 </header>
-                <div class="ai-loss-stats">
-                  <div>
-                    <p class="fact-label">Base AAL</p>
-                    <p class="io-coord" id="fin-base-aal">not found</p>
+                <div class="chart-frame chart-frame-ep">
+                  <canvas id="ep-chart" aria-label="Exceedance loss versus return period"></canvas>
+                </div>
+                <div class="ep-legend">
+                  <span><i class="swatch swatch-navy"></i> Ground-up</span>
+                  <span><i class="swatch swatch-crimson"></i> Net of deductible &amp; limit</span>
+                  <span><i class="swatch swatch-gold"></i> 100-year mark</span>
+                </div>
+              </section>
+            </section>
+
+            <section class="analysis-step mod-card mod-results hidden" data-step="results" aria-labelledby="results-title">
+              <header class="mod-head results-head">
+                <div>
+                  <h2 id="results-title" class="mod-title">Results</h2>
+                  <p class="mod-lede">Write or hold, with the AI upgrade beside the base.</p>
+                </div>
+                <button type="button" class="btn-primary px-4 py-2 text-sm" id="results-download">Download briefing</button>
+              </header>
+              <section class="decision-strip" aria-label="Facultative screening">
+                <div class="decision-verdict" id="decision-verdict">
+                  <p class="decision-kicker">Should we write?</p>
+                  <p class="decision-stamp" id="decision-stamp">—</p>
+                </div>
+                <div class="decision-facts">
+                  <div class="decision-fact">
+                    <span>Property</span>
+                    <strong id="dec-property">not found</strong>
                   </div>
-                  <div>
-                    <p class="fact-label">AI-upgraded AAL</p>
-                    <p class="io-coord" id="fin-ai-aal">not found</p>
+                  <div class="decision-fact">
+                    <span>TIV</span>
+                    <strong id="dec-tiv">not found</strong>
                   </div>
-                  <div>
-                    <p class="fact-label">Difference</p>
-                    <p class="io-coord" id="fin-ai-delta">not found</p>
-                  </div>
-                  <div>
-                    <p class="fact-label">AI PML @ 100-year</p>
-                    <p class="io-coord" id="fin-ai-pml">not found</p>
+                  <div class="decision-fact">
+                    <span>Class</span>
+                    <strong id="dec-class">not found</strong>
                   </div>
                 </div>
-                <p class="wet-chip" id="ai-hotspot-note"></p>
+                <p class="decision-why" id="decision-why"></p>
+              </section>
+              <div class="ai-loss-stats results-kpi">
+                <div>
+                  <p class="fact-label">Total exposure</p>
+                  <p class="io-coord" id="res-tiv">not found</p>
+                  <p class="io-meta" id="res-tiv-src"></p>
+                </div>
+                <div>
+                  <p class="fact-label">Construction</p>
+                  <p class="io-coord" id="res-class">not found</p>
+                </div>
+                <div>
+                  <p class="fact-label">Base AAL</p>
+                  <p class="io-coord" id="fin-base-aal">not found</p>
+                </div>
+                <div>
+                  <p class="fact-label">AI-upgraded AAL</p>
+                  <p class="io-coord" id="fin-ai-aal">not found</p>
+                </div>
+                <div>
+                  <p class="fact-label">Difference</p>
+                  <p class="io-coord" id="fin-ai-delta">not found</p>
+                </div>
+                <div>
+                  <p class="fact-label">AI PML @ 100-year</p>
+                  <p class="io-coord" id="fin-ai-pml">not found</p>
+                </div>
+              </div>
+              <p class="wet-chip" id="ai-hotspot-note"></p>
+              <p class="chart-caption" id="ai-loss-lede"></p>
+              <table class="rp-table" id="res-loss-table">
+                <thead>
+                  <tr>
+                    <th>Return period</th>
+                    <th>Base net</th>
+                    <th>AI-upgraded net</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <section class="ep-panel" aria-labelledby="res-ep-title">
+                <header class="ep-head">
+                  <h2 id="res-ep-title" class="mod-title">Exceedance curve</h2>
+                  <p class="chart-caption">Base net versus AI-upgraded net. Five stated points.</p>
+                </header>
+                <div class="chart-frame chart-frame-ep">
+                  <canvas id="res-ep-chart" aria-label="Results exceedance curve"></canvas>
+                </div>
+                <div class="ep-legend">
+                  <span><i class="swatch swatch-navy"></i> Ground-up</span>
+                  <span><i class="swatch swatch-crimson"></i> Base net</span>
+                  <span><i class="swatch swatch-ai"></i> AI-upgraded net</span>
+                  <span><i class="swatch swatch-gold"></i> 100-year mark</span>
+                </div>
               </section>
               <section class="ai-overview" id="ai-overview" aria-labelledby="ai-overview-title">
                 <h3 id="ai-overview-title" class="mod-title">AI overview</h3>
@@ -285,40 +366,13 @@
                   <ul id="ai-assumptions"></ul>
                 </details>
               </section>
-              <section class="decision-strip" aria-label="Facultative screening">
-                <div class="decision-verdict" id="decision-verdict">
-                  <p class="decision-kicker">Should we write?</p>
-                  <p class="decision-stamp" id="decision-stamp">—</p>
-                </div>
-                <div class="decision-facts">
-                  <div class="decision-fact">
-                    <span>Property</span>
-                    <strong id="dec-property">not found</strong>
-                  </div>
-                  <div class="decision-fact">
-                    <span>TIV</span>
-                    <strong id="dec-tiv">not found</strong>
-                  </div>
-                </div>
-                <p class="decision-why" id="decision-why"></p>
-              </section>
-              <dl class="terms-strip" id="fin-terms"></dl>
-              <section class="ep-panel" aria-labelledby="ep-title">
-                <header class="ep-head">
-                  <h2 id="ep-title" class="mod-title">Exceedance curve</h2>
-                  <p class="chart-caption" id="ep-caption">
-                    Five stated points — not a continuous model.
-                  </p>
-                </header>
-                <div class="chart-frame chart-frame-ep">
-                  <canvas id="ep-chart" aria-label="Exceedance loss versus return period"></canvas>
-                </div>
-                <div class="ep-legend">
-                  <span><i class="swatch swatch-navy"></i> Ground-up</span>
-                  <span><i class="swatch swatch-crimson"></i> Net of deductible &amp; limit</span>
-                  <span><i class="swatch swatch-gold"></i> 100-year mark</span>
-                  <span><i class="swatch swatch-ai"></i> AI-upgraded net</span>
-                </div>
+              <section class="results-chat" aria-labelledby="results-chat-title">
+                <h3 id="results-chat-title" class="mod-title">Ask about these numbers</h3>
+                <div id="results-chat-log" class="results-chat-log"></div>
+                <form id="results-chat-form" class="results-chat-form">
+                  <input id="results-chat-input" type="text" autocomplete="off" placeholder="Ask about AAL, the hotspot, or a term…" />
+                  <button type="submit" class="btn-primary px-4 py-2 text-sm">Send</button>
+                </form>
               </section>
             </section>
           </div>
@@ -332,6 +386,6 @@
     </div>
     <script src="js/session.js"></script>
     <script src="js/copilot.js"></script>
-    <script src="js/analysis.js?v=ai2"></script>
+    <script src="js/analysis.js?v=results1"></script>
   </body>
 </html>

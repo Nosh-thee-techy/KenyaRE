@@ -421,6 +421,12 @@
       .sort(function (a, b) {
         return b.aep - a.aep;
       });
+    if (tail.length === 1) {
+      return {
+        value: tail[0].net_loss_kes,
+        note: "Only one stated tail point (" + tail[0].return_period + "y). TVaR equals that net loss — not a continuous tail."
+      };
+    }
     if (tail.length < 2) {
       return {
         value: null,
@@ -513,6 +519,7 @@
     if (stamp) stamp.textContent = decision.verdict;
     setText("dec-property", ctx.property || "not found");
     setText("dec-tiv", fmtKes(ctx.tiv));
+    setText("dec-class", ctx.classLabel || "not found");
     setText("dec-aal", fmtKes(ctx.aalNet));
     setText("dec-pml", fmtKes(ctx.pml100));
     setText("decision-why", decision.why);
@@ -722,7 +729,7 @@
         "Nearest blinded corridor: " +
           ctx.aiHotspot +
           (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "") +
-          ". Hazard stays on the TIFF. Finance holds the AI upgrade."
+          ". Hazard stays on the TIFF. Results holds the AI upgrade."
       );
     } else {
       setText("haz-blind-note", "");
@@ -792,6 +799,165 @@
           .join("");
       }
     }
+  }
+
+  function aiNetAt(ctx, rp) {
+    const row = (ctx.aiCurve || []).filter(function (p) {
+      return p.return_period === rp;
+    })[0];
+    return row ? row.net_loss_kes : null;
+  }
+
+  function renderResults(ctx) {
+    renderAiFinance(ctx);
+    setText("res-tiv", fmtKes(ctx.tiv));
+    setText("res-tiv-src", ctx.tivSrc ? "Source: " + ctx.tivSrc + ". Facultative slip, not the synthetic book." : "TIV source not found.");
+    setText("res-class", ctx.classLabel || "not found");
+    const tbody = document.querySelector("#res-loss-table tbody");
+    if (tbody) {
+      const rows = ctx.curve || [];
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="nf">not found</td></tr>';
+      } else {
+        tbody.innerHTML = rows
+          .map(function (pt) {
+            const ai = aiNetAt(ctx, pt.return_period);
+            return (
+              "<tr><td>" +
+              stormLabel(pt) +
+              " · " +
+              pt.return_period +
+              "y</td><td>" +
+              fmtKes(pt.net_loss_kes) +
+              "</td><td>" +
+              fmtKes(ai != null ? ai : pt.net_loss_kes) +
+              "</td></tr>"
+            );
+          })
+          .join("");
+      }
+    }
+  }
+
+  function downloadBriefing(ctx) {
+    if (!ctx) return;
+    const decision = decide(ctx);
+    const tvar = ctx.tvar100 || {};
+    const lines = [
+      "Kenya Re · Nairobi facultative flood briefing",
+      "Property: " + (ctx.property || "not found"),
+      "Reference: " + (ctx.reference || "not found"),
+      "Pin: " + (ctx.lat != null && ctx.lon != null ? ctx.lat.toFixed(4) + ", " + ctx.lon.toFixed(4) : "not found"),
+      "GPS: " + ((ctx.gps && ctx.gps.label) || "not found"),
+      "",
+      "Decision: " + decision.verdict,
+      decision.why || "",
+      "",
+      "Total exposure (TIV): " + fmtKesFull(ctx.tiv) + " (" + (ctx.tivSrc || "source not found") + ")",
+      "Construction: " + (ctx.classLabel || "not found"),
+      "This is one facultative risk, not the 600-row synthetic book.",
+      "",
+      "Finance (TIFF base)",
+      "AAL net: " + fmtKesFull(ctx.aalNet),
+      "PML 100y: " + fmtKesFull(ctx.pml100),
+      "TVaR 100y: " + fmtKesFull(tvar.value),
+      tvar.note || "",
+      "",
+      "Base vs AI-upgraded AAL: " +
+        fmtKesFull(ctx.aalNet) +
+        " → " +
+        fmtKesFull(ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet),
+      "AI PML 100y: " + fmtKesFull(ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100),
+      "Hotspot: " +
+        (ctx.aiHotspot
+          ? ctx.aiHotspot + (ctx.aiDistanceKm != null ? " · " + ctx.aiDistanceKm + " km" : "")
+          : "none in the 2 km gate"),
+      "",
+      "Loss at stated return periods"
+    ];
+    (ctx.curve || []).forEach(function (pt) {
+      const ai = aiNetAt(ctx, pt.return_period);
+      lines.push(
+        pt.return_period +
+          "y base net " +
+          fmtKesFull(pt.net_loss_kes) +
+          " · AI net " +
+          fmtKesFull(ai != null ? ai : pt.net_loss_kes)
+      );
+    });
+    lines.push("");
+    lines.push(ctx.aiBriefing || "");
+    lines.push("");
+    lines.push("Sources");
+    (ctx.aiSources || []).forEach(function (src) {
+      lines.push("- " + (src.title || src.id) + " — " + (src.what || "") + " — " + (src.url || ""));
+    });
+    lines.push("");
+    lines.push("Assumptions");
+    (ctx.aiAssumptions || []).forEach(function (line) {
+      lines.push("- " + line);
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kenya-re-results-" + (ctx.reference || ctx.sessionId || "run") + ".txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function bindResultsDesk() {
+    const dl = document.getElementById("results-download");
+    if (dl && !dl.dataset.bound) {
+      dl.dataset.bound = "1";
+      dl.addEventListener("click", function () {
+        downloadBriefing(lastCtx);
+      });
+    }
+    const form = document.getElementById("results-chat-form");
+    if (form && !form.dataset.bound) {
+      form.dataset.bound = "1";
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        sendResultsChat();
+      });
+    }
+  }
+
+  async function sendResultsChat() {
+    const input = document.getElementById("results-chat-input");
+    const log = document.getElementById("results-chat-log");
+    const q = input && input.value ? input.value.trim() : "";
+    if (!q || !log) return;
+    input.value = "";
+    const qEl = document.createElement("p");
+    qEl.className = "chat-q";
+    qEl.textContent = q;
+    log.appendChild(qEl);
+    const wait = document.createElement("p");
+    wait.className = "chat-a";
+    wait.textContent = "…";
+    log.appendChild(wait);
+    log.scrollTop = log.scrollHeight;
+    const pair = window.__kenyaReSessionPair || {};
+    try {
+      const res = await fetch(API_BASE + "/api/copilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: q,
+          exposure: pair.input || (lastCtx && lastCtx.raw) || {},
+          results: (pair.output && pair.output.results) || pair.output || {},
+          history: []
+        })
+      });
+      const data = await res.json().catch(function () {
+        return {};
+      });
+      wait.textContent = data.answer || data.error || "No answer.";
+    } catch (err) {
+      wait.textContent = err.message || "Chat failed.";
+    }
+    log.scrollTop = log.scrollHeight;
   }
 
   function renderVulnerability(ctx) {
@@ -968,7 +1134,9 @@
     setText("exp-chip", bits.join(" · "));
     setText(
       "exp-in-note",
-      ctx.tiv != null ? "TIV from the slip. Damage ratios from Vulnerability." : "TIV is not on the slip."
+      ctx.tiv != null
+        ? "TIV source: " + (ctx.tivSrc || "not found") + ". One facultative risk — not the 600-row synthetic book. Damage ratios from Vulnerability."
+        : "TIV is not on the slip."
     );
     if (!rows.length) {
       fillPills("exp-dr-pills", '<p class="nf">Damage ratios arrive after Vulnerability.</p>');
@@ -1037,19 +1205,17 @@
     const dedMin = ctx.dedMin == null ? "min not found" : fmtKes(ctx.dedMin) + " min";
     const lim = ctx.limit == null ? "limit not found" : fmtKes(ctx.limit);
     setText("fin-in-note", "Ground-up from Exposure. " + dedPct + " / " + dedMin + " · " + lim + ".");
-    const underwriteAal = ctx.aiApplied && ctx.aiAalNet != null ? ctx.aiAalNet : ctx.aalNet;
-    const underwritePml = ctx.aiApplied && ctx.aiPml100 != null ? ctx.aiPml100 : ctx.pml100;
     setText(
       "fin-out-note",
-      ctx.aiApplied
-        ? "Underwriting number is the AI-upgraded net. Base TIFF loss is beside it."
-        : ctx.hasModel
-          ? "Net of deductible and limit. AI equals base on this pin."
-          : "Waiting on model output."
+      ctx.hasModel
+        ? "TIFF base only. Net of deductible and limit. AI comparison is on Results."
+        : "Waiting on model output."
     );
-    setText("fin-aal", fmtKes(underwriteAal));
-    setText("fin-pml", fmtKes(underwritePml));
-    renderAiFinance(ctx);
+    setText("fin-aal", fmtKes(ctx.aalNet));
+    setText("fin-pml", fmtKes(ctx.pml100));
+    const tvar = ctx.tvar100 || {};
+    setText("fin-tvar", fmtKes(tvar.value));
+    setText("fin-tvar-note", tvar.note || "");
     const host = document.getElementById("fin-terms");
     if (host) {
       const ded =
@@ -1397,7 +1563,7 @@
       aiPml100: aiPml100,
       aiCurve: aiCurve,
       rol: rol,
-      tvar100: constructedTvar(curve, 0.01),
+      tvar100: constructedTvar(curve, 0.02),
       pml250Ratio: tivN && pml250 != null ? pml250 / tivN : null,
       hotspot: Boolean(res.hazard_summary && res.hazard_summary.nearby_hotspot),
       hotspotName: res.hazard_summary && res.hazard_summary.nearby_hotspot,
@@ -1419,12 +1585,14 @@
     { id: "hazard", title: "Hazard", nextLabel: "Next · Vulnerability" },
     { id: "vulnerability", title: "Vulnerability", nextLabel: "Next · Exposure" },
     { id: "exposure", title: "Exposure", nextLabel: "Next · Finance" },
-    { id: "finance", title: "Finance engine", nextLabel: "Back to review" }
+    { id: "finance", title: "Finance", nextLabel: "Next · Results" },
+    { id: "results", title: "Results", nextLabel: "Back to review" }
   ];
 
   function stepFromHash() {
     const raw = (location.hash || "").replace(/^#/, "").toLowerCase();
     if (raw === "financial") return "finance";
+    if (raw === "result") return "results";
     return STEPS.some(function (s) { return s.id === raw; }) ? raw : "hazard";
   }
 
@@ -1480,7 +1648,9 @@
     const ep = document.getElementById("ep-chart");
     const dd = document.getElementById("dd-chart");
     const fold = document.getElementById("dd-fold");
-    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve, lastAiCurve);
+    if (ep && stepIsVisible(ep)) drawEpCurve(ep, lastCurve, null);
+    const resEp = document.getElementById("res-ep-chart");
+    if (resEp && stepIsVisible(resEp)) drawEpCurve(resEp, lastCurve, lastAiCurve);
     if (dd && stepIsVisible(dd) && (!fold || fold.open)) drawDepthDamage(dd);
   }
 
@@ -1546,6 +1716,8 @@
     renderVulnerability(ctx);
     renderExposure(ctx);
     renderFinance(ctx);
+    renderResults(ctx);
+    bindResultsDesk();
     lastCurve = ctx.curve || [];
     lastAiCurve = ctx.aiCurve || [];
     if (!location.hash || location.hash === "#") {

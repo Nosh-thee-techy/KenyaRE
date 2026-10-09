@@ -181,6 +181,24 @@ function extractGps(text) {
     if (looksLikeNairobi(lat, lon)) return { lat, lon };
   }
 
+  const southEast = text.match(
+    /([0-1]?\d\.\d{2,})\s*[°]?\s*S\s*[,;/\s]+([3][3-9]\.\d{2,})\s*[°]?\s*E/i
+  );
+  if (southEast) {
+    const lat = -Math.abs(parseFloat(southEast[1]));
+    const lon = parseFloat(southEast[2]);
+    if (looksLikeNairobi(lat, lon)) return { lat, lon };
+  }
+
+  const nairobiPair = text.match(
+    /(-?1\.\d{2,})\s*[,;/\s]\s*(3[6-7]\.\d{2,})/
+  );
+  if (nairobiPair) {
+    const lat = parseFloat(nairobiPair[1]);
+    const lon = parseFloat(nairobiPair[2]);
+    if (looksLikeNairobi(lat, lon)) return { lat, lon };
+  }
+
   return null;
 }
 
@@ -373,5 +391,6 @@ function extractFromSlip(text = '') {
 
 module.exports = {
   extractFromSlip,
+  extractGps,
   mapHousingClass
 };
